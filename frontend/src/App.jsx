@@ -1,85 +1,143 @@
-import { useMemo, useState } from "react";
-import Header from "./components/Header";
-import InputCard from "./components/InputCard";
-import ResultsCard from "./components/ResultsCard";
-import StatusBanner from "./components/StatusBanner";
-import "./styles.css";
+import { useState } from "react";
+import DashboardPage from "./pages/DashboardPage";
 
-const SAMPLE_INPUT = `I did chest day: bench press 3x8, incline dumbbell press 3x10, push-ups 2 sets to near failure. Felt slight shoulder discomfort.`;
-
-export default function App() {
-  const [text, setText] = useState("");
-  const [status, setStatus] = useState("idle"); // idle | loading | error | success
-  const [errorMsg, setErrorMsg] = useState("");
-  const [result, setResult] = useState(null);
-
-  const mockResult = useMemo(
-    () => ({
-      summary:
-        "Converted your workout notes into structured data and next steps.",
-      structured: [
-        { field: "Workout Type", value: "Upper (Chest)" },
-        { field: "Exercises", value: "Bench, Incline DB Press, Push-ups" },
-        { field: "Volume", value: "3 + 3 + 2 sets" },
-        { field: "Flag", value: "Shoulder discomfort" },
-      ],
-      nextSteps: [
-        "Warm up shoulders (band external rotations) before pressing",
-        "Reduce bench load slightly if discomfort persists",
-        "Track RPE for each set next session",
-      ],
-    }),
-    []
-  );
-
-  function handleUseSample() {
-    setText(SAMPLE_INPUT);
-    setStatus("idle");
-    setErrorMsg("");
-    setResult(null);
+const MOCK_TOWERS = [
+  { id: "TWR_101", lat: 49.2767, lon: -123.112, radio: "LTE", severity: 0 },
+  { id: "TWR_087", lat: 49.28, lon: -123.115, radio: "5G", severity: 0 },
+  { id: "TWR_103", lat: 49.277, lon: -123.11, radio: "LTE", severity: 0 },
+  { id: "TWR_090", lat: 49.279, lon: -123.114, radio: "5G", severity: 0 },
+];
+function mapSeverityToNumber(sev) {
+  switch (sev) {
+    case "critical":
+      return 1;
+    case "high":
+      return 0.85;
+    case "moderate":
+      return 0.6;
+    case "low":
+      return 0.3;
+    default:
+      return 0;
   }
+}
+export default function App() {
+  const [towers, setTowers] = useState(MOCK_TOWERS);
+  const [selectedTower, setSelectedTower] = useState(null);
+  const [aiActions, setAiActions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [affectedAreas, setAffectedAreas] = useState([]);
 
-  async function handleAnalyze() {
-    if (!text.trim()) return;
+  const handleAnalyze = async (prompt) => {
+    if (!prompt.trim()) return;
 
-    // For now: mock analyze (no backend needed)
-    setStatus("loading");
-    setErrorMsg("");
-    setResult(null);
+    setLoading(true);
+    setError("");
+    setAiActions([]);
 
     try {
-      await new Promise((r) => setTimeout(r, 700)); // simulate latency
-      setResult(mockResult);
-      setStatus("success");
+      await new Promise((r) => setTimeout(r, 700));
+      const aiResponse = {
+        events: [
+          {
+            id: "crowd_spike_001",
+            affected_areas: [
+              {
+                severity: "high",
+                affected_towers: ["TWR_101", "TWR_087"],
+                latency: 120,
+                packet_loss: 2.3,
+                reason: "High expected crowd + towers already at 70% load",
+                actions: [
+                  {
+                    type: "load_balance",
+                    shift_percent: 20,
+                    to_towers: ["TWR_103", "TWR_090"],
+                  },
+                  {
+                    type: "scale_capacity",
+                    amount: 1,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const areas = aiResponse.events.flatMap(event =>
+        event.affected_areas.map(area => ({
+          name: area.area_name,
+          severity: area.severity,
+          center: area.center,
+          latRange: area.lat_range,
+          longRange: area.long_range,
+          confidence: area.confidence
+        }))
+      );
+
+setAffectedAreas(areas);
+      const affectedAreas = aiResponse.events.flatMap(
+        (ev) => ev.affected_areas
+      );
+      setTowers((prevTowers) =>
+        prevTowers.map((t) => {
+          const area = affectedAreas.find(
+            (a) =>
+              a.affected_towers?.includes(t.id)
+          );
+
+          const severityValue =
+            typeof area?.severity === "string"
+              ? mapSeverityToNumber(area.severity)
+              : area?.severity ?? 0;
+
+          return {
+            ...t,
+            severity: severityValue,
+            kpi: {
+              traffic: severityValue,
+              latency: area?.latency ?? 0,
+              loss: area?.packet_loss ?? 0,
+              updatedAt: new Date(),
+            },
+          };
+        })
+      );
+      setAiActions(
+        affectedAreas.flatMap((area) =>
+          (area.actions || []).map((a) => ({
+            timestamp: new Date().toLocaleTimeString(),
+            type: a.type,
+            details:
+              a.type === "load_balance"
+                ? `Shift ${a.shift_percent}% → ${a.to_towers.join(", ")}`
+                : `Scale capacity by ${a.amount}`,
+          }))
+        )
+      );
     } catch (e) {
-      setErrorMsg("Something went wrong. Please try again.");
-      setStatus("error");
+      console.error(e);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  }
+  };
+
 
   return (
-    <div className="page">
-      <Header
-        title="AI at the Edge"
-        tagline="Turn real-world inputs into structured insights in seconds."
+    <div className="App" style={{ height: "100vh" }}>
+      <DashboardPage
+        towers={towers}
+        setTowers={setTowers}
+        selectedTower={selectedTower}
+        setSelectedTower={setSelectedTower}
+        aiActions={aiActions}
+        setAiActions={setAiActions}
+        onAnalyze={handleAnalyze}
+        loading={loading}
+        error={error}
       />
-
-      <main className="grid">
-        <section className="col">
-          <InputCard
-            value={text}
-            onChange={setText}
-            onAnalyze={handleAnalyze}
-            onUseSample={handleUseSample}
-            isLoading={status === "loading"}
-          />
-        </section>
-
-        <section className="col">
-          <StatusBanner status={status} errorMsg={errorMsg} />
-          <ResultsCard result={result} />
-        </section>
-      </main>
     </div>
   );
 }

@@ -1,18 +1,10 @@
 import { MapContainer, TileLayer, CircleMarker, Popup, useMapEvents } from "react-leaflet";
-
-
-// Convert traffic level to color
-
 function colorFromTraffic(traffic) {
-  if (traffic == null) return "#3388ff"; // default
-  if (traffic > 0.8) return "#e53935"; // red
-  if (traffic > 0.5) return "#fb8c00"; // orange
-  return "#43a047"; // green
+  if (traffic == null) return "#3388ff";
+  if (traffic > 0.8) return "#e53935";
+  if (traffic > 0.5) return "#fb8c00";
+  return "#43a047";
 }
-
-
-// Optional map click handler (for future event picking)
-
 function MapClickHandler({ enabled, onPick }) {
   useMapEvents({
     click(e) {

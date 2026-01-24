@@ -18,15 +18,9 @@ export default function CoverageMapPage() {
     if (radio === "ALL") return towersData;
     return towersData.filter((t) => t.radio === radio);
   }, [radio]);
-
   const MAX_RENDER = 5000;
   const toRender = filtered.slice(0, MAX_RENDER);
-
-  // Canada-ish center
   const center = [56.1304, -106.3468];
-
-// Simulated live KPIs (will be replaced by WebSocket later)
-
   useEffect(() => {
     const interval = setInterval(() => {
       setKpiById((prev) => {
