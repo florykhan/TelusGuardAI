@@ -1,0 +1,88 @@
+:root {
+  --bg: #0b1220;
+  --panel: #0f1b2d;
+  --panel2: #111f34;
+  --border: rgba(255,255,255,0.08);
+  --text: rgba(255,255,255,0.92);
+  --muted: rgba(255,255,255,0.60);
+  --muted2: rgba(255,255,255,0.42);
+  --blue: #2563eb;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.noc-shell {
+  height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+.noc-grid {
+  display: flex;
+  height: 100%;
+  gap: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.noc-col {
+  background: linear-gradient(180deg, var(--panel), rgba(15,27,45,0.92));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.35);
+}
+
+.noc-col-inner {
+  height: 100%;
+  overflow: auto;
+}
+
+.noc-left {
+  width: 22%;
+  min-width: 280px;
+}
+
+.noc-right {
+  width: 28%;
+  min-width: 340px;
+}
+
+.noc-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.noc-section {
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.noc-title {
+  font-weight: 800;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.noc-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.noc-muted {
+  color: var(--muted);
+}
+
+.leaflet-container {
+  background: #0b1220 !important;
+  border-radius: 12px;
+}
