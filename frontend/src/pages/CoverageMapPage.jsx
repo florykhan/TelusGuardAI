@@ -2,6 +2,32 @@ import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import towersData from "../data/telus_towers.json";
 import CoverageMap from "../components/CoverageMap.jsx";
+import L from "leaflet";
+
+// Helper function to count towers inside an impact area
+function countTowersInArea(area, towers) {
+  if (!towers || towers.length === 0) return 0;
+  if (!area.bounds || !Array.isArray(area.bounds) || area.bounds.length !== 2) return 0;
+
+  // Create Leaflet bounds from area bounds
+  // area.bounds is [[minLat, minLon], [maxLat, maxLon]]
+  const [southWest, northEast] = area.bounds;
+  const bounds = L.latLngBounds(southWest, northEast);
+
+  // Count towers that fall within the bounds
+  let count = 0;
+  for (const tower of towers) {
+    if (tower.lat != null && tower.lon != null) {
+      const point = L.latLng(tower.lat, tower.lon);
+      // contains() includes points on the boundary
+      if (bounds.contains(point)) {
+        count++;
+      }
+    }
+  }
+
+  return count;
+}
 
 // Map severity label to a numeric score so we can sort
 function severityToScore(sev) {
@@ -204,6 +230,18 @@ export default function CoverageMapPage() {
     out.sort((x, y) => y.severityScore - x.severityScore);
     return out;
   }, [activeResponse]);
+
+  // Compute tower counts for impact areas
+  const impactAreasWithCounts = useMemo(() => {
+    if (!towersData || towersData.length === 0) {
+      return impactAreas.map(area => ({ ...area, towerCount: 0 }));
+    }
+
+    return impactAreas.map(area => {
+      const towerCount = countTowersInArea(area, towersData);
+      return { ...area, towerCount };
+    });
+  }, [impactAreas, towersData]);
 
   const selectImpactArea = (area) => {
     setSelectedAreaId(area.id);
@@ -417,7 +455,7 @@ export default function CoverageMapPage() {
           layers={layers}
           selectedAreaId={selectedAreaId}
           focusBounds={focusBounds}
-          impactAreas={impactAreas}
+          impactAreas={impactAreasWithCounts}
           onSelectImpactArea={selectImpactArea}
           onMapBoundsChange={setMapBounds}
           onSelectTower={(id) => {

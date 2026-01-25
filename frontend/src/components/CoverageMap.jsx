@@ -3,6 +3,31 @@ import { MapContainer, TileLayer, CircleMarker, Popup, Rectangle, useMap, useMap
 import "leaflet.heat";
 import L from "leaflet";
 
+// Helper function to count towers inside an impact area
+function countTowersInArea(area, towers) {
+  if (!towers || towers.length === 0) return 0;
+  if (!area.bounds || !Array.isArray(area.bounds) || area.bounds.length !== 2) return 0;
+
+  // Create Leaflet bounds from area bounds
+  // area.bounds is [[minLat, minLon], [maxLat, maxLon]]
+  const [southWest, northEast] = area.bounds;
+  const bounds = L.latLngBounds(southWest, northEast);
+
+  // Count towers that fall within the bounds
+  let count = 0;
+  for (const tower of towers) {
+    if (tower.lat != null && tower.lon != null) {
+      const point = L.latLng(tower.lat, tower.lon);
+      // contains() includes points on the boundary
+      if (bounds.contains(point)) {
+        count++;
+      }
+    }
+  }
+
+  return count;
+}
+
 // Tower status/KPI -> color
 function colorFromKPI(kpi) {
   if (!kpi) return "#3388ff"; // Default blue if no KPI
@@ -284,7 +309,7 @@ function ImpactAreasMenu({ impactAreas, selectedAreaId, onSelectImpactArea, isOp
 
                 <div style={{ display: "flex", gap: 12, marginTop: 6, opacity: 0.9 }}>
                   <div>
-                    Affected towers: <b>{towersTxt}</b>
+                    Towers: <b>{a.towerCount != null ? a.towerCount : towersTxt}</b>
                   </div>
                   <div>
                     Confidence: <b>{confPct}</b>
@@ -416,6 +441,18 @@ export default function CoverageMap({
     return areas;
   }, [agentResponse]);
 
+  // Compute tower counts for each impact area
+  const areasWithTowerCounts = useMemo(() => {
+    if (!towers || towers.length === 0) {
+      return affectedAreas.map(area => ({ ...area, towerCount: 0 }));
+    }
+
+    return affectedAreas.map(area => {
+      const towerCount = countTowersInArea(area, towers);
+      return { ...area, towerCount };
+    });
+  }, [affectedAreas, towers]);
+
   // Heatmap points from affected area centers
   const heatPoints = useMemo(() => {
     if (!layers.heatmap) return [];
@@ -449,7 +486,7 @@ export default function CoverageMap({
         {/* Rectangles for affected areas */}
         {/* Render in order: larger areas first, smaller areas last (on top) */}
         {layers.zones &&
-          affectedAreas.map((a) => {
+          areasWithTowerCounts.map((a) => {
             const isSelected = selectedAreaId === a.id;
 
             return (
@@ -468,6 +505,11 @@ export default function CoverageMap({
                       <b>Severity:</b> {String(a.severityLabel)} ({Math.round(a.severityScore * 100)}%)
                     </div>
 
+                    {/* Display tower count */}
+                    <div>
+                      <b>Towers affected:</b> {a.towerCount ?? 0}
+                    </div>
+
                     {a.confidence != null && (
                       <div>
                         <b>Confidence:</b>{" "}
@@ -481,9 +523,9 @@ export default function CoverageMap({
                       </div>
                     )}
 
-                    {Array.isArray(a.affected_towers) && (
-                      <div>
-                        <b>Affected towers:</b> {a.affected_towers.length}
+                    {Array.isArray(a.affected_towers) && a.affected_towers.length > 0 && (
+                      <div style={{ opacity: 0.7, fontSize: 11, marginTop: 4 }}>
+                        <i>Backend reported: {a.affected_towers.length} towers</i>
                       </div>
                     )}
 
