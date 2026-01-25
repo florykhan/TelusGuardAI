@@ -220,6 +220,27 @@ export default function DashboardPage({
     if (ids.length) throttledFetchKPIs(ids);
   }, [mapBounds, toRender, getTowerId, throttledFetchKPIs]);
 
+  // Poll KPIs for the selected tower every 5 seconds
+  useEffect(() => {
+    if (!selectedTower) return;
+
+    const towerId = getTowerId(selectedTower);
+    if (!towerId) return;
+
+    // Fetch immediately when tower is selected
+    fetchKPIs([towerId]);
+
+    // Set up polling interval (5 seconds)
+    const intervalId = setInterval(() => {
+      fetchKPIs([towerId]);
+    }, 5000);
+
+    // Cleanup: clear interval when tower changes, is deselected, or component unmounts
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [selectedTower, getTowerId, fetchKPIs]);
+
   const handleSelectTower = useCallback(
     (towerId) => {
       const tower = toRender.find((t) => getTowerId(t) === towerId);
@@ -230,6 +251,7 @@ export default function DashboardPage({
       // Store only tower data, NOT KPI snapshot
       // KPI will be looked up fresh from kpiByTowerId when rendering
       // This ensures both popup and panel always use the latest KPI data
+      // Polling effect will automatically start fetching KPIs for this tower
       setSelectedTower({ ...tower });
       setSelectedAreaId(null);
       setFocusBounds(null);
