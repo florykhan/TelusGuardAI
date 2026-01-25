@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, Rectangle, useMap, useMapEvents } from "react-leaflet";
 import "leaflet.heat";
 import L from "leaflet";
@@ -46,6 +46,57 @@ function FitBounds({ bounds }) {
     map.fitBounds(bounds, { padding: [40, 40] });
   }, [map, bounds]);
   return null;
+}
+
+// Wrapper component to ensure proper z-ordering for overlapping impact areas
+function ZOrderedRectangle({ area, isSelected, onSelectArea, children }) {
+  const rectangleRef = useRef(null);
+
+  useEffect(() => {
+    // Use setTimeout to ensure the layer is fully added to the map before bringing to front
+    const timer = setTimeout(() => {
+      if (rectangleRef.current) {
+        const layer = rectangleRef.current.leafletElement;
+        if (layer) {
+          // Bring this rectangle to front to ensure it receives click events
+          // This is especially important for smaller areas inside larger ones
+          layer.bringToFront();
+        }
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [area.id]);
+
+  return (
+    <Rectangle
+      ref={rectangleRef}
+      bounds={area.bounds}
+      pathOptions={{
+        color: colorFromSeverityLabel(area.severityLabel),
+        weight: isSelected ? 5 : 2,
+        fillOpacity: isSelected ? 0.22 : 0.12,
+        // Ensure pointer events work correctly
+        interactive: true,
+      }}
+      eventHandlers={{
+        click: (e) => {
+          // Stop event propagation to prevent parent areas from receiving the click
+          if (e.originalEvent) {
+            e.originalEvent.stopPropagation();
+          }
+          onSelectArea?.(area.id);
+        },
+        mousedown: (e) => {
+          // Also stop propagation on mousedown to be safe
+          if (e.originalEvent) {
+            e.originalEvent.stopPropagation();
+          }
+        },
+      }}
+    >
+      {children}
+    </Rectangle>
+  );
 }
 
 // Component to track map bounds changes
@@ -321,6 +372,9 @@ export default function CoverageMap({
         const minLon = Math.min(lonRange[0], lonRange[1]);
         const maxLon = Math.max(lonRange[0], lonRange[1]);
 
+        // Calculate area size for proper z-ordering
+        const areaSize = (maxLat - minLat) * (maxLon - minLon);
+
         areas.push({
           id,
           event_id: evId,
@@ -336,6 +390,7 @@ export default function CoverageMap({
             [minLat, minLon],
             [maxLat, maxLon],
           ],
+          areaSize, // Store area size for sorting
           confidence: a.confidence,
           reasoning: a.reasoning,
           estimated_impact: a.estimated_impact,
@@ -345,7 +400,19 @@ export default function CoverageMap({
       }
     }
 
-    areas.sort((x, y) => y.severityScore - x.severityScore);
+    // Sort by area size (descending) so larger areas render first, smaller areas render last (on top)
+    // For areas of similar size, prioritize higher severity to render last
+    // This ensures smaller/higher-priority areas receive click events
+    areas.sort((x, y) => {
+      // Primary sort: by area size (larger first = renders first, smaller last = renders on top)
+      const sizeDiff = y.areaSize - x.areaSize;
+      if (Math.abs(sizeDiff) > 0.0001) {
+        // Areas are significantly different in size
+        return sizeDiff;
+      }
+      // Secondary sort: by severity (lower severity first = renders first, higher severity last = renders on top)
+      return x.severityScore - y.severityScore;
+    });
     return areas;
   }, [agentResponse]);
 
@@ -380,22 +447,17 @@ export default function CoverageMap({
         <HeatLayer points={heatPoints} enabled={!!layers.heatmap} />
 
         {/* Rectangles for affected areas */}
+        {/* Render in order: larger areas first, smaller areas last (on top) */}
         {layers.zones &&
           affectedAreas.map((a) => {
             const isSelected = selectedAreaId === a.id;
 
             return (
-              <Rectangle
+              <ZOrderedRectangle
                 key={a.id}
-                bounds={a.bounds}
-                pathOptions={{
-                  color: colorFromSeverityLabel(a.severityLabel),
-                  weight: isSelected ? 5 : 2,
-                  fillOpacity: isSelected ? 0.22 : 0.12,
-                }}
-                eventHandlers={{
-                  click: () => onSelectArea?.(a.id),
-                }}
+                area={a}
+                isSelected={isSelected}
+                onSelectArea={onSelectArea}
               >
                 <Popup>
                   <div style={{ fontSize: 13 }}>
@@ -444,7 +506,7 @@ export default function CoverageMap({
                     )}
                   </div>
                 </Popup>
-              </Rectangle>
+              </ZOrderedRectangle>
             );
           })}
 
