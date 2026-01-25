@@ -28,6 +28,54 @@ export default function CoverageMapPage() {
   const [selectedAreaId, setSelectedAreaId] = useState(null);
   const [focusBounds, setFocusBounds] = useState(null);
 
+  // ============================
+  // Backend Agent Integration
+  const [prompt, setPrompt] = useState(
+    "Ice storm in Toronto tonight — which areas will be impacted most?"
+  );
+  const [agentResponse, setAgentResponse] = useState(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [agentError, setAgentError] = useState(null);
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+  const ANALYZE_PATH = "/api/analyze-network-impact";  
+
+  async function runAgent() {
+    try {
+      setIsRunning(true);
+      setAgentError(null);
+  
+      const res = await fetch(`${API_BASE}${ANALYZE_PATH}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: prompt,
+          options: {
+            max_areas: 10,
+            min_confidence: 0.7,
+            include_reasoning: true,
+          },
+        }),
+      });
+  
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Backend ${res.status}: ${text}`);
+      }
+  
+      const data = await res.json();
+      setAgentResponse(data);
+    } catch (e) {
+      setAgentError(e.message || String(e));
+    } finally {
+      setIsRunning(false);
+    }
+  }
+  
+
+  // Use backend response if available; otherwise fallback to mock (so the demo never breaks)
+  // ============================
+
   // Map center (Canada-ish). We'll auto-zoom when selecting an area anyway.
   const center = [56.1304, -106.3468];
 
@@ -45,7 +93,7 @@ export default function CoverageMapPage() {
   const MAX_RENDER = 5000;
   const toRender = filtered.slice(0, MAX_RENDER);
 
-  // Mock agent/model response (replace later with backend output)
+  // Mock agent/model response
   const mockAgentResponse = useMemo(
     () => ({
       events: [
@@ -105,9 +153,20 @@ export default function CoverageMapPage() {
     []
   );
 
-  // Build a sorted list of impact areas for the side panel
+  const activeResponse = agentResponse ?? mockAgentResponse;
+
+  // Clear selections when a new agent response arrives
+  useEffect(() => {
+    if (agentResponse) {
+      setSelectedAreaId(null);
+      setSelectedTower(null);
+      setFocusBounds(null);
+    }
+  }, [agentResponse]);
+
+  // Build a sorted list of impact areas (used by map overlay menu)
   const impactAreas = useMemo(() => {
-    const events = mockAgentResponse?.events || [];
+    const events = activeResponse?.events || [];
     const out = [];
 
     for (const ev of events) {
@@ -143,7 +202,7 @@ export default function CoverageMapPage() {
 
     out.sort((x, y) => y.severityScore - x.severityScore);
     return out;
-  }, [mockAgentResponse]);
+  }, [activeResponse]);
 
   const selectImpactArea = (area) => {
     setSelectedAreaId(area.id);
@@ -228,6 +287,41 @@ export default function CoverageMapPage() {
           </label>
         </div>
 
+        {/* Prompt + run */}
+        <input
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Describe an event..."
+          style={{
+            minWidth: 420,
+            padding: "6px 10px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.2)",
+            background: "rgba(255,255,255,0.06)",
+            color: "inherit",
+          }}
+        />
+
+        <button
+          onClick={runAgent}
+          disabled={isRunning}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 8,
+            cursor: isRunning ? "not-allowed" : "pointer",
+            opacity: isRunning ? 0.7 : 1,
+          }}
+          title={`POST ${API_BASE}${ANALYZE_PATH}`}
+        >
+          {isRunning ? "Analyzing..." : "Run analysis"}
+        </button>
+
+        {agentError && (
+          <div style={{ color: "#ff6b6b", maxWidth: 520 }}>
+            {agentError}
+          </div>
+        )}
+
         {/* Selection info */}
         {selectedTower && (
           <div style={{ opacity: 0.85 }}>
@@ -240,7 +334,10 @@ export default function CoverageMapPage() {
           </div>
         )}
 
-        <div style={{ opacity: 0.75 }}>Note: KPIs are simulated right now (random). Backend will replace them.</div>
+        <div style={{ opacity: 0.75 }}>
+          Note: KPIs are simulated right now (random). Backend will replace them.
+          {agentResponse ? " (Agent: backend)" : " (Agent: mock)"}
+        </div>
       </div>
 
       {/* Map */}
@@ -250,7 +347,7 @@ export default function CoverageMapPage() {
           center={center}
           zoom={4}
           kpiById={kpiById}
-          agentResponse={mockAgentResponse}
+          agentResponse={activeResponse}
           layers={layers}
           selectedAreaId={selectedAreaId}
           focusBounds={focusBounds}
