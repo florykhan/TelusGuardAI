@@ -10,6 +10,7 @@ from orchestrator import NetworkImpactOrchestrator
 from utils.logger import logger
 from utils.cache import cache
 from config import Config
+from services.kpi_service import get_kpi_service
 
 
 # ============================================================================
@@ -56,6 +57,7 @@ def home():
         "endpoints": {
             "health": "/health",
             "analyze": "/api/analyze-network-impact (POST)",
+            "kpis": "/api/kpis (POST)",
             "cache_stats": "/api/cache-stats (GET)",
             "cached_queries": "/api/cached-queries (GET)",
             "clear_cache": "/api/clear-cache (POST)"
@@ -150,6 +152,72 @@ def analyze_network_impact():
         
     except Exception as e:
         logger.error(f"💥 Error in analyze endpoint: {str(e)}")
+        return jsonify({
+            "error": "Internal server error",
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }), 500
+
+
+@app.route('/api/kpis', methods=['POST'])
+def get_kpis():
+    """
+    Get KPIs for specified tower IDs
+    
+    Request body:
+    {
+        "tower_ids": ["tower_1", "tower_2", ...],
+        "options": {
+            "mode": "sim",
+            "tick_ms": 1000
+        }
+    }
+    
+    Response:
+    {
+        "timestamp": "ISO 8601 timestamp",
+        "kpis": {
+            "tower_1": {
+                "traffic": 0.65,
+                "latency_ms": 45,
+                "packet_loss": 0.02,
+                "energy": 0.7,
+                "status": "ok"
+            },
+            ...
+        }
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                "error": "Invalid request",
+                "message": "Request body must be JSON"
+            }), 400
+        
+        tower_ids = data.get('tower_ids', [])
+        
+        if not tower_ids or not isinstance(tower_ids, list):
+            return jsonify({
+                "error": "Missing or invalid field",
+                "message": "Field 'tower_ids' is required and must be a non-empty list"
+            }), 400
+        
+        # Get KPI service and fetch KPIs
+        kpi_service = get_kpi_service()
+        kpis = kpi_service.get_kpis(tower_ids)
+        
+        logger.info(f"📊 Returning KPIs for {len(kpis)} towers")
+        
+        return jsonify({
+            "timestamp": datetime.now().isoformat(),
+            "kpis": kpis
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"💥 Error in KPIs endpoint: {str(e)}")
         return jsonify({
             "error": "Internal server error",
             "message": str(e),
@@ -306,6 +374,7 @@ def not_found(error):
             "/",
             "/health",
             "/api/analyze-network-impact",
+            "/api/kpis",
             "/api/cache-stats",
             "/api/cached-queries",
             "/api/clear-cache",

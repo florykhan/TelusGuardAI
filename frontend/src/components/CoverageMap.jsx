@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup, Rectangle, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, Rectangle, useMap, useMapEvents } from "react-leaflet";
 import "leaflet.heat";
 import L from "leaflet";
 
-// Tower traffic -> color
-function colorFromTraffic(traffic) {
+// Tower status/KPI -> color
+function colorFromKPI(kpi) {
+  if (!kpi) return "#3388ff"; // Default blue if no KPI
+  
+  // Use status if available
+  if (kpi.status === "down") return "#e53935"; // Red
+  if (kpi.status === "degraded") return "#fb8c00"; // Orange
+  if (kpi.status === "ok") return "#43a047"; // Green
+  
+  // Fallback to traffic-based coloring
+  const traffic = kpi.traffic;
   if (traffic == null) return "#3388ff";
   if (traffic > 0.8) return "#e53935";
   if (traffic > 0.5) return "#fb8c00";
@@ -36,6 +45,51 @@ function FitBounds({ bounds }) {
     if (!bounds) return;
     map.fitBounds(bounds, { padding: [40, 40] });
   }, [map, bounds]);
+  return null;
+}
+
+// Component to track map bounds changes
+function MapBoundsTracker({ onBoundsChange }) {
+  const map = useMap();
+  
+  useMapEvents({
+    moveend: () => {
+      const bounds = map.getBounds();
+      if (onBoundsChange) {
+        onBoundsChange({
+          north: bounds.getNorth(),
+          south: bounds.getSouth(),
+          east: bounds.getEast(),
+          west: bounds.getWest(),
+        });
+      }
+    },
+    zoomend: () => {
+      const bounds = map.getBounds();
+      if (onBoundsChange) {
+        onBoundsChange({
+          north: bounds.getNorth(),
+          south: bounds.getSouth(),
+          east: bounds.getEast(),
+          west: bounds.getWest(),
+        });
+      }
+    },
+  });
+  
+  // Initial bounds
+  useEffect(() => {
+    const bounds = map.getBounds();
+    if (onBoundsChange) {
+      onBoundsChange({
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest(),
+      });
+    }
+  }, [map, onBoundsChange]);
+  
   return null;
 }
 
@@ -203,7 +257,8 @@ export default function CoverageMap({
   towers,
   center,
   zoom = 5,
-  kpiById = {},
+  kpiByTowerId = {},
+  getTowerId,
 
   // agent response (raw)
   agentResponse = null,
@@ -222,6 +277,9 @@ export default function CoverageMap({
   // NEW: impact areas list and selection handler
   impactAreas = [],
   onSelectImpactArea,
+  
+  // NEW: map bounds tracking
+  onMapBoundsChange,
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -314,6 +372,9 @@ export default function CoverageMap({
 
         {/* NEW: auto-zoom to selected area */}
         <FitBounds bounds={focusBounds} />
+        
+        {/* Track map bounds for KPI fetching */}
+        <MapBoundsTracker onBoundsChange={onMapBoundsChange} />
 
         {/* Heatmap */}
         <HeatLayer points={heatPoints} enabled={!!layers.heatmap} />
@@ -390,7 +451,8 @@ export default function CoverageMap({
         {/* Towers */}
         {layers.towers &&
           towers.map((t) => {
-            const kpi = kpiById[t.id];
+            const towerId = getTowerId ? getTowerId(t) : t.id;
+            const kpi = kpiByTowerId[towerId];
 
             return (
               <CircleMarker
@@ -398,38 +460,48 @@ export default function CoverageMap({
                 center={[t.lat, t.lon]}
                 radius={4}
                 pathOptions={{
-                  color: colorFromTraffic(kpi?.traffic),
+                  color: colorFromKPI(kpi),
                   fillOpacity: 0.85,
                 }}
                 eventHandlers={{
-                  click: () => onSelectTower?.(t.id),
+                  click: () => onSelectTower?.(towerId),
                 }}
               >
                 <Popup>
                   <div style={{ fontSize: 13 }}>
                     <div>
-                      <b>ID:</b> {t.id}
+                      <b>ID:</b> {towerId}
                     </div>
                     <div>
                       <b>Radio:</b> {t.radio}
                     </div>
 
-                    {kpi && (
+                    {kpi ? (
                       <>
                         <hr />
                         <div>
-                          <b>Traffic:</b> {(kpi.traffic * 100).toFixed(0)}%
+                          <b>Status:</b> <span style={{ 
+                            color: kpi.status === "down" ? "#e53935" : 
+                                   kpi.status === "degraded" ? "#fb8c00" : "#43a047"
+                          }}>{kpi.status.toUpperCase()}</span>
                         </div>
                         <div>
-                          <b>Latency:</b> {kpi.latency.toFixed(1)} ms
+                          <b>Traffic:</b> {(kpi.traffic * 100).toFixed(1)}%
                         </div>
                         <div>
-                          <b>Packet Loss:</b> {(kpi.loss * 100).toFixed(2)}%
+                          <b>Latency:</b> {kpi.latency_ms} ms
                         </div>
-                        <div style={{ opacity: 0.6, marginTop: 4 }}>
-                          updated {new Date(kpi.updatedAt).toLocaleTimeString()}
+                        <div>
+                          <b>Packet Loss:</b> {(kpi.packet_loss * 100).toFixed(2)}%
+                        </div>
+                        <div>
+                          <b>Energy:</b> {(kpi.energy * 100).toFixed(1)}%
                         </div>
                       </>
+                    ) : (
+                      <div style={{ opacity: 0.6, marginTop: 4, fontStyle: "italic" }}>
+                        KPI data loading...
+                      </div>
                     )}
                   </div>
                 </Popup>

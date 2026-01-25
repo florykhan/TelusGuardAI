@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import towersData from "../data/telus_towers.json";
 import CoverageMap from "../components/CoverageMap.jsx";
@@ -17,8 +17,8 @@ export default function CoverageMapPage() {
   // Filters
   const [radio, setRadio] = useState("ALL");
 
-  // Live-ish KPI state (mock now, backend later)
-  const [kpiById, setKpiById] = useState({});
+  // KPI state from backend
+  const [kpiByTowerId, setKpiByTowerId] = useState({});
 
   // UI state
   const [layers, setLayers] = useState({ towers: true, heatmap: true, zones: true });
@@ -37,8 +37,9 @@ export default function CoverageMapPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [agentError, setAgentError] = useState(null);
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-  const ANALYZE_PATH = "/api/analyze-network-impact";  
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001";
+  const ANALYZE_PATH = "/api/analyze-network-impact";
+  const KPIS_PATH = "/api/kpis";  
 
   async function runAgent() {
     try {
@@ -210,26 +211,90 @@ export default function CoverageMapPage() {
     setSelectedTower(null);
   };
 
-  // Simulated live KPIs. Updates every 1s.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setKpiById((prev) => {
-        const next = { ...prev };
-        for (const t of toRender) {
-          next[t.id] = {
-            traffic: Math.random(),
-            latency: 20 + Math.random() * 80,
-            loss: Math.random() * 0.05,
-            energy: Math.random(),
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return next;
-      });
-    }, 1000);
+  // Helper to get stable tower_id (towers already have id field)
+  const getTowerId = useCallback((tower) => {
+    if (tower.id) return tower.id;
+    // Fallback: generate from lat/lon if id missing
+    return `tower_${Math.round(tower.lat * 1000000)}_${Math.round(tower.lon * 1000000)}`;
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [toRender]);
+  // State for map bounds tracking
+  const [mapBounds, setMapBounds] = useState(null);
+  const [fetchInProgress, setFetchInProgress] = useState(false);
+  const throttleRef = useRef({ lastRun: 0 });
+
+  // Fetch KPIs for visible towers
+  const fetchKPIs = async (towerIds) => {
+    if (!towerIds || towerIds.length === 0) return;
+    if (fetchInProgress) return;
+
+    // Cap at 1000 towers per request
+    const cappedIds = towerIds.slice(0, 1000);
+
+    try {
+      setFetchInProgress(true);
+      const res = await fetch(`${API_BASE}${KPIS_PATH}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tower_ids: cappedIds,
+          options: {
+            mode: "sim",
+            tick_ms: 1000,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(`KPI fetch failed ${res.status}: ${text}`);
+        return;
+      }
+
+      const data = await res.json();
+      if (data.kpis) {
+        setKpiByTowerId((prev) => ({ ...prev, ...data.kpis }));
+        if (import.meta.env.DEV) {
+          console.log(`[KPI] Fetched ${Object.keys(data.kpis).length} KPIs`);
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching KPIs:", e);
+    } finally {
+      setFetchInProgress(false);
+    }
+  };
+
+  // Throttled fetch function (1.5 seconds)
+  const throttledFetchKPIs = (towerIds) => {
+    const now = Date.now();
+    if (now - throttleRef.current.lastRun >= 1500) {
+      throttleRef.current.lastRun = now;
+      fetchKPIs(towerIds);
+    }
+  };
+
+  // Compute visible towers when map bounds change
+  useEffect(() => {
+    if (!mapBounds) return;
+
+    const visibleTowerIds = toRender
+      .filter((tower) => {
+        const lat = tower.lat;
+        const lon = tower.lon;
+        return (
+          lat >= mapBounds.south &&
+          lat <= mapBounds.north &&
+          lon >= mapBounds.west &&
+          lon <= mapBounds.east
+        );
+      })
+      .map(getTowerId);
+
+    if (visibleTowerIds.length > 0) {
+      throttledFetchKPIs(visibleTowerIds);
+    }
+  }, [mapBounds, toRender, getTowerId]);
 
   return (
     <div style={{ padding: 16 }}>
@@ -335,7 +400,7 @@ export default function CoverageMapPage() {
         )}
 
         <div style={{ opacity: 0.75 }}>
-          Note: KPIs are simulated right now (random). Backend will replace them.
+          KPIs from backend
           {agentResponse ? " (Agent: backend)" : " (Agent: mock)"}
         </div>
       </div>
@@ -346,13 +411,15 @@ export default function CoverageMapPage() {
           towers={toRender}
           center={center}
           zoom={4}
-          kpiById={kpiById}
+          kpiByTowerId={kpiByTowerId}
+          getTowerId={getTowerId}
           agentResponse={activeResponse}
           layers={layers}
           selectedAreaId={selectedAreaId}
           focusBounds={focusBounds}
           impactAreas={impactAreas}
           onSelectImpactArea={selectImpactArea}
+          onMapBoundsChange={setMapBounds}
           onSelectTower={(id) => {
             setSelectedTower(id);
             setSelectedAreaId(null);
