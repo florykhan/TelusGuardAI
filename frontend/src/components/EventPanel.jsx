@@ -3,12 +3,33 @@ import { useState } from "react";
 export default function EventPanel({ onAnalyze, loading }) {
   const [prompt, setPrompt] = useState("");
 
-  const INCIDENTS = [
-    { label: "Stadium Surge", prompt: "Concert at BC Place tonight (stadium surge)" },
-    { label: "Traffic Spike", prompt: "Traffic spike downtown at 7PM" },
-    { label: "Tower Outage", prompt: "Tower outage at Main St & 3rd Ave" },
-    { label: "Packet Loss Spike", prompt: "Packet loss spike near BC Place" },
+  const READY_PROMPTS = [
+    { 
+      label: "BC Place Concert", 
+      prompt: "Concert at BC Place in Vancouver causing traffic surge and network congestion in surrounding neighborhoods." 
+    },
+    { 
+      label: "Toronto Winter Storm", 
+      prompt: "Severe winter storm impacting cellular infrastructure across Downtown Toronto core." 
+    },
+    { 
+      label: "Union Station Outages", 
+      prompt: "Multiple cell tower outages detected near Union Station, Toronto during evening rush hour." 
+    },
+    { 
+      label: "Rogers Centre Packet Loss", 
+      prompt: "Packet loss spike affecting towers around Rogers Centre and Toronto waterfront." 
+    },
+    { 
+      label: "Canada Place Event", 
+      prompt: "Major public event near Canada Place causing localized service degradation in Downtown Vancouver." 
+    },
   ];
+
+  const handlePromptClick = (promptText) => {
+    // Only populate the textarea, don't auto-run
+    setPrompt(promptText);
+  };
 
   const run = (p) => {
     if (!p.trim()) return;
@@ -21,7 +42,19 @@ export default function EventPanel({ onAnalyze, loading }) {
       <h2 style={{ marginTop: 0 }}>Event Panel</h2>
 
       <textarea
-        style={{ width: "100%", height: 70, marginBottom: 8, padding: 8 }}
+        style={{ 
+          width: "100%", 
+          height: 70, 
+          marginBottom: 8, 
+          padding: 8,
+          backgroundColor: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(255,255,255,0.15)",
+          borderRadius: 8,
+          color: "rgba(255,255,255,0.95)",
+          fontFamily: "inherit",
+          fontSize: 13,
+          resize: "vertical",
+        }}
         placeholder="Enter event prompt here..."
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
@@ -46,25 +79,37 @@ export default function EventPanel({ onAnalyze, loading }) {
       </button>
 
       <div style={{ marginTop: 6 }}>
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>Incident Simulator</div>
+        <div style={{ fontWeight: 800, marginBottom: 8, color: "rgba(255,255,255,0.92)" }}>Ready Event Prompts</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
-          {INCIDENTS.map((x) => (
+          {READY_PROMPTS.map((x) => (
             <button
               key={x.label}
-              onClick={() => run(x.prompt)}
+              onClick={() => handlePromptClick(x.prompt)}
               disabled={loading}
               style={{
                 width: "100%",
                 padding: 10,
-                backgroundColor: "#f3f4f6",
-                border: "1px solid #d1d5db",
+                backgroundColor: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.08)",
                 borderRadius: 8,
                 cursor: loading ? "not-allowed" : "pointer",
                 textAlign: "left",
+                color: "rgba(255,255,255,0.92)",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.06)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.03)";
+                }
               }}
             >
-              <div style={{ fontWeight: 800 }}>{x.label}</div>
-              <div style={{ fontSize: 12, opacity: 0.75 }}>{x.prompt}</div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "rgba(255,255,255,0.95)" }}>{x.label}</div>
+              <div style={{ fontSize: 12, opacity: 0.65, marginTop: 2, color: "rgba(255,255,255,0.7)" }}>{x.prompt}</div>
             </button>
           ))}
         </div>

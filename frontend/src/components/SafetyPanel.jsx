@@ -14,15 +14,74 @@ function StatusRow({ label, value, color }) {
   );
 }
 
+// Generate consistent simulated values based on tower/area ID
+function generateSystemMetrics(id) {
+  if (!id) {
+    return {
+      actionReadiness: 0.85,
+      affectedRadius: 2.5,
+      automationMode: "Monitoring",
+      rollbackAvailable: true,
+      lastAIDecision: "No actions taken",
+    };
+  }
+
+  // Generate deterministic but unique values based on ID hash
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash = hash & hash;
+  }
+  const absHash = Math.abs(hash);
+
+  // Action Readiness: 70-95% based on hash
+  const actionReadiness = 0.70 + (absHash % 26) / 100;
+
+  // Affected Radius: 0.5-5.0 km based on hash
+  const affectedRadius = 0.5 + ((absHash % 46) / 10);
+
+  // Automation Mode: rotate through options based on hash
+  const modes = ["Monitoring", "Active", "Paused"];
+  const automationMode = modes[absHash % 3];
+
+  // Rollback Available: 80% chance based on hash
+  const rollbackAvailable = (absHash % 10) < 8;
+
+  // Last AI Decision: various options based on hash
+  const decisions = [
+    "Load balancing optimized",
+    "Capacity allocated",
+    "Frequency adjusted",
+    "No actions taken",
+    "Maintenance scheduled",
+    "Traffic rerouted",
+  ];
+  const lastAIDecision = decisions[absHash % decisions.length];
+
+  return {
+    actionReadiness,
+    affectedRadius,
+    automationMode,
+    rollbackAvailable,
+    lastAIDecision,
+  };
+}
+
 export default function SafetyPanel({
-  confidence = 0.92,
-  blastRadius = 0.2,
-  cooldownActive = true,
-  rollbackReady = true,
-  lastActionStatus = "success",
+  towerId = null,
+  areaId = null,
 }) {
-  const confidenceColor =
-    confidence >= 0.85 ? "#22c55e" : confidence >= 0.6 ? "#f59e0b" : "#ef4444";
+  // Use towerId if available, otherwise areaId, for consistent metrics
+  const id = towerId || areaId;
+  const metrics = generateSystemMetrics(id);
+
+  const readinessColor =
+    metrics.actionReadiness >= 0.85 ? "#22c55e" : 
+    metrics.actionReadiness >= 0.7 ? "#f59e0b" : "#ef4444";
+
+  const modeColor =
+    metrics.automationMode === "Active" ? "#22c55e" :
+    metrics.automationMode === "Monitoring" ? "#f59e0b" : "#ef4444";
 
   return (
     <div
@@ -31,6 +90,7 @@ export default function SafetyPanel({
         border: "1px solid rgba(255,255,255,0.08)",
         borderRadius: 12,
         padding: 12,
+        marginTop: 28,
         marginBottom: 12,
       }}
     >
@@ -39,33 +99,33 @@ export default function SafetyPanel({
       </div>
 
       <StatusRow
-        label="Confidence"
-        value={`${Math.round(confidence * 100)}%`}
-        color={confidenceColor}
+        label="Action Readiness"
+        value={`${Math.round(metrics.actionReadiness * 100)}%`}
+        color={readinessColor}
       />
 
       <StatusRow
-        label="Blast Radius"
-        value={`${Math.round(blastRadius * 100)}%`}
-        color={blastRadius <= 0.25 ? "#22c55e" : "#f59e0b"}
+        label="Affected Radius"
+        value={`${metrics.affectedRadius.toFixed(1)} km`}
+        color="#f59e0b"
       />
 
       <StatusRow
-        label="Cooldown"
-        value={cooldownActive ? "Active" : "Idle"}
-        color={cooldownActive ? "#f59e0b" : "#22c55e"}
+        label="Automation Mode"
+        value={metrics.automationMode}
+        color={modeColor}
       />
 
       <StatusRow
-        label="Rollback"
-        value={rollbackReady ? "Ready" : "Unavailable"}
-        color={rollbackReady ? "#22c55e" : "#ef4444"}
+        label="Rollback Available"
+        value={metrics.rollbackAvailable ? "Yes" : "No"}
+        color={metrics.rollbackAvailable ? "#22c55e" : "#ef4444"}
       />
 
       <StatusRow
-        label="Last Action"
-        value={lastActionStatus}
-        color={lastActionStatus === "success" ? "#22c55e" : "#ef4444"}
+        label="Last AI Decision"
+        value={metrics.lastAIDecision}
+        color="#f59e0b"
       />
     </div>
   );

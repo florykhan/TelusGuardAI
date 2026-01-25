@@ -236,16 +236,17 @@ export default function CoverageMapPage() {
   }, [activeResponse]);
 
   // Compute tower counts for impact areas
+  // Use filtered towers (toRender) to match what's displayed on the map
   const impactAreasWithCounts = useMemo(() => {
-    if (!towersData || towersData.length === 0) {
+    if (!toRender || toRender.length === 0) {
       return impactAreas.map(area => ({ ...area, towerCount: 0 }));
     }
 
     return impactAreas.map(area => {
-      const towerCount = countTowersInArea(area, towersData);
+      const towerCount = countTowersInArea(area, toRender);
       return { ...area, towerCount };
     });
-  }, [impactAreas, towersData]);
+  }, [impactAreas, toRender]);
 
   const selectImpactArea = (area) => {
     setSelectedAreaId(area.id);

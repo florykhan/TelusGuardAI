@@ -28,21 +28,30 @@ function countTowersInArea(area, towers) {
   return count;
 }
 
+// Shared function to calculate severity score from KPI snapshot
+// This is the single source of truth for severity calculation
+export function calculateSeverityFromKPI(kpi) {
+  if (!kpi) return 0;
+  
+  // Priority: status > traffic
+  if (kpi.status === "down") return 0.95; // Critical (red)
+  if (kpi.status === "degraded") return 0.75; // Warning (orange)
+  if (kpi.status === "ok") return 0.3; // Online (green)
+  
+  // Fallback to traffic-based severity
+  const traffic = kpi.traffic;
+  if (traffic == null) return 0;
+  if (traffic > 0.8) return 0.9; // High traffic = high severity
+  if (traffic > 0.5) return 0.65; // Medium traffic = medium severity
+  return 0.35; // Low traffic = low severity
+}
+
 // Tower status/KPI -> color
 function colorFromKPI(kpi) {
-  if (!kpi) return "#3388ff"; // Default blue if no KPI
-  
-  // Use status if available
-  if (kpi.status === "down") return "#e53935"; // Red
-  if (kpi.status === "degraded") return "#fb8c00"; // Orange
-  if (kpi.status === "ok") return "#43a047"; // Green
-  
-  // Fallback to traffic-based coloring
-  const traffic = kpi.traffic;
-  if (traffic == null) return "#3388ff";
-  if (traffic > 0.8) return "#e53935";
-  if (traffic > 0.5) return "#fb8c00";
-  return "#43a047";
+  const sev = calculateSeverityFromKPI(kpi);
+  if (sev >= 0.85) return "#e53935"; // Red
+  if (sev >= 0.6) return "#fb8c00"; // Orange
+  return "#43a047"; // Green
 }
 
 // severity label -> numeric 0..1
@@ -197,134 +206,248 @@ function HeatLayer({ points, enabled }) {
   return null;
 }
 
-// Impact Areas overlay menu component
-function ImpactAreasMenu({ impactAreas, selectedAreaId, onSelectImpactArea, isOpen, onToggle }) {
-  const hasAreas = impactAreas && impactAreas.length > 0;
+// Get severity color
+function getSeverityColor(severity) {
+  const s = (severity || "").toLowerCase();
+  if (s === "critical") return "#d32f2f"; // red
+  if (s === "high") return "#f57c00"; // orange
+  if (s === "moderate") return "#fbc02d"; // yellow
+  if (s === "low") return "#388e3c"; // green
+  return "#757575"; // default gray
+}
 
-  return (
-    <div
-      data-impact-areas-menu
-      style={{
-        position: "absolute",
-        top: 12,
-        right: 12,
-        zIndex: 1000,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-end",
-      }}
-    >
-      {/* Toggle button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle();
-        }}
-        onMouseDown={(e) => e.stopPropagation()}
-        style={{
-          padding: "8px 14px",
-          borderRadius: 8,
-          border: "1px solid rgba(255,255,255,0.14)",
-          background: "rgba(0,0,0,0.6)",
-          color: "#e9ecf1",
-          cursor: "pointer",
-          fontSize: 14,
-          fontWeight: 500,
-          backdropFilter: "blur(8px)",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-        }}
-      >
-        Impact Areas
-      </button>
+// Sort impact areas by severity: critical → high → moderate → low
+function sortImpactAreasBySeverity(areas) {
+  const severityOrder = { critical: 0, high: 1, moderate: 2, low: 3 };
+  return [...areas].sort((a, b) => {
+    const aOrder = severityOrder[a.severity?.toLowerCase()] ?? 99;
+    const bOrder = severityOrder[b.severity?.toLowerCase()] ?? 99;
+    return aOrder - bOrder;
+  });
+}
 
-      {/* Menu panel */}
-      {isOpen && (
-        <div
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            marginTop: 8,
-            width: 320,
-            maxHeight: "60vh",
-            overflowY: "auto",
-            borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(0,0,0,0.75)",
-            backdropFilter: "blur(12px)",
-            padding: 12,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
-          }}
-        >
-          <div style={{ fontWeight: 750, marginBottom: 8, fontSize: 16 }}>Impact Areas</div>
+// Impact Areas Control - renders as a Leaflet control in top-right corner
+function ImpactAreasControl({ impactAreas, selectedAreaId, onSelectImpactArea }) {
+  const map = useMap();
+  const containerRef = useRef(null);
+  const controlRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
 
-          {hasAreas ? (
-            <>
-              {/* Legend */}
-              <div style={{ display: "flex", gap: 10, alignItems: "center", opacity: 0.9, marginBottom: 10 }}>
-                <span>🟢 low</span>
-                <span>🟠 medium</span>
-                <span>🔴 critical</span>
-              </div>
+  // Create Leaflet control and add to map
+  useEffect(() => {
+    if (!map) return;
 
-              {impactAreas.map((a) => {
-            const isSelected = a.id === selectedAreaId;
-            const dot = a.severity === "critical" ? "🔴" : a.severity === "high" ? "🟠" : "🟢";
-            const confPct =
-              a.confidence != null
-                ? typeof a.confidence === "number"
-                  ? `${Math.round(a.confidence * 100)}%`
-                  : String(a.confidence)
-                : "—";
-            const towersTxt = a.affectedCount != null ? String(a.affectedCount) : "—";
+    const Control = L.Control.extend({
+      onAdd: function() {
+        const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+        container.style.background = "transparent";
+        container.style.border = "none";
+        container.style.boxShadow = "none";
+        containerRef.current = container;
+        return container;
+      },
+    });
 
-            return (
-              <button
-                key={a.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectImpactArea(a);
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: isSelected ? "rgba(255,255,255,0.08)" : "transparent",
-                  padding: 10,
-                  borderRadius: 10,
-                  marginBottom: 10,
-                  cursor: "pointer",
-                  color: "inherit",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                  <div style={{ fontWeight: 650 }}>
-                    {dot} {a.name}
-                  </div>
-                  <div style={{ opacity: 0.75 }}>{a.severity}</div>
-                </div>
+    const control = new Control({ position: "topright" });
+    control.addTo(map);
+    controlRef.current = control;
 
-                <div style={{ opacity: 0.7, marginTop: 4, fontSize: 12 }}>{a.eventName}</div>
+    return () => {
+      if (controlRef.current) {
+        map.removeControl(controlRef.current);
+      }
+    };
+  }, [map]);
 
-                <div style={{ display: "flex", gap: 12, marginTop: 6, opacity: 0.9 }}>
-                  <div>
-                    Towers: <b>{a.towerCount != null ? a.towerCount : towersTxt}</b>
-                  </div>
-                  <div>
-                    Confidence: <b>{confPct}</b>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-            </>
-          ) : (
-            <div style={{ opacity: 0.7 }}>No impact areas yet.</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e) => {
+      const menuElement = e.target.closest('[data-impact-areas-control]');
+      if (!menuElement && containerRef.current) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  // Sort impact areas by severity
+  const sortedAreas = useMemo(() => {
+    return sortImpactAreasBySeverity(impactAreas || []);
+  }, [impactAreas]);
+
+  const hasAreas = sortedAreas.length > 0;
+
+  // Render control content using DOM manipulation (required for Leaflet controls)
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Handle area selection (defined inside useEffect to avoid closure issues)
+    const handleSelectArea = (area) => {
+      if (onSelectImpactArea) {
+        onSelectImpactArea(area);
+      }
+      setIsOpen(false);
+    };
+
+    const container = containerRef.current;
+    container.innerHTML = "";
+
+    const wrapper = document.createElement("div");
+    wrapper.setAttribute("data-impact-areas-control", "");
+    wrapper.style.cssText = "display: flex; flex-direction: column; align-items: flex-end;";
+
+    // Toggle button
+    const button = document.createElement("button");
+    button.textContent = "Impact Areas";
+    button.style.cssText = `
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(50, 50, 50, 0.75);
+      color: #e9ecf1;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      font-family: inherit;
+      line-height: 1.4;
+      transition: background 0.2s;
+    `;
+    L.DomEvent.on(button, "click", (e) => {
+      L.DomEvent.stopPropagation(e);
+      setIsOpen(!isOpen);
+    });
+    L.DomEvent.on(button, "mousedown", (e) => {
+      L.DomEvent.stopPropagation(e);
+    });
+    // Hover effect
+    button.addEventListener("mouseenter", () => {
+      button.style.background = "rgba(50, 50, 50, 0.85)";
+    });
+    button.addEventListener("mouseleave", () => {
+      button.style.background = "rgba(50, 50, 50, 0.75)";
+    });
+
+    wrapper.appendChild(button);
+
+    // Dropdown panel
+    if (isOpen) {
+      const panel = document.createElement("div");
+      panel.style.cssText = `
+        margin-top: 8px;
+        width: 320px;
+        max-height: 60vh;
+        overflow-y: auto;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(50, 50, 50, 0.75);
+        padding: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+      `;
+
+      if (hasAreas) {
+        sortedAreas.forEach((area, index) => {
+          const isSelected = area.id === selectedAreaId;
+          const severityColor = getSeverityColor(area.severity);
+          const isLast = index === sortedAreas.length - 1;
+
+          const item = document.createElement("button");
+          // For selected items: full border on all sides with severity color
+          // For non-selected items: subtle border with divider on bottom (except last)
+          const borderStyle = isSelected 
+            ? `2px solid ${severityColor}` 
+            : "1px solid rgba(255,255,255,0.1)";
+          const borderBottom = isSelected
+            ? `2px solid ${severityColor}`  // Complete border for selected items
+            : (!isLast ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0.1)");
+          
+          item.style.cssText = `
+            width: 100%;
+            text-align: left;
+            border: ${borderStyle};
+            border-bottom: ${borderBottom};
+            background: ${isSelected ? "rgba(255,255,255,0.15)" : "transparent"};
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #e9ecf1;
+            font-family: inherit;
+            margin-bottom: ${isLast ? "0" : "8px"};
+            transition: all 0.2s;
+            box-sizing: border-box;
+          `;
+
+          const content = document.createElement("div");
+          content.style.cssText = "display: flex; align-items: center; gap: 10px; margin-bottom: 4px;";
+
+          const dot = document.createElement("div");
+          dot.style.cssText = `
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: ${severityColor};
+            flex-shrink: 0;
+          `;
+
+          const name = document.createElement("div");
+          name.textContent = area.name;
+          name.style.cssText = "font-weight: 600; flex: 1; color: #e9ecf1;";
+
+          content.appendChild(dot);
+          content.appendChild(name);
+
+          const eventName = document.createElement("div");
+          eventName.textContent = area.eventName;
+          eventName.style.cssText = "font-size: 12px; opacity: 0.75; margin-left: 22px; color: #e9ecf1;";
+
+          item.appendChild(content);
+          item.appendChild(eventName);
+
+          L.DomEvent.on(item, "click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            handleSelectArea(area);
+          });
+          L.DomEvent.on(item, "mousedown", (e) => {
+            L.DomEvent.stopPropagation(e);
+          });
+
+          item.addEventListener("mouseenter", () => {
+            if (!isSelected) {
+              item.style.background = "rgba(255,255,255,0.1)";
+            } else {
+              item.style.background = "rgba(255,255,255,0.2)";
+            }
+          });
+          item.addEventListener("mouseleave", () => {
+            if (!isSelected) {
+              item.style.background = "transparent";
+            } else {
+              item.style.background = "rgba(255,255,255,0.15)";
+            }
+          });
+
+          panel.appendChild(item);
+        });
+      } else {
+        const empty = document.createElement("div");
+        empty.textContent = "No impact areas yet.";
+        empty.style.cssText = "opacity: 0.75; padding: 8px; color: #e9ecf1;";
+        panel.appendChild(empty);
+      }
+
+      wrapper.appendChild(panel);
+    }
+
+    container.appendChild(wrapper);
+  }, [isOpen, sortedAreas, selectedAreaId, hasAreas, onSelectImpactArea]);
+
+  return null;
 }
 export default function CoverageMap({
   towers,
@@ -357,23 +480,6 @@ export default function CoverageMap({
   // When true, hide overlay controls (Impact Areas menu); used when layout provides toggles
   hideControls = false,
 }) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    if (!isMenuOpen) return;
-
-    const handleClickOutside = (e) => {
-      // Check if click is outside the menu
-      const menuElement = e.target.closest('[data-impact-areas-menu]');
-      if (!menuElement) {
-        setIsMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isMenuOpen]);
 
   // Flatten affected areas from agent response
   const affectedAreas = useMemo(() => {
@@ -419,7 +525,6 @@ export default function CoverageMap({
           confidence: a.confidence,
           reasoning: a.reasoning,
           estimated_impact: a.estimated_impact,
-          affected_towers: a.affected_towers,
           mitigation: a.mitigation_actions || a.mitigation,
         });
       }
@@ -442,7 +547,29 @@ export default function CoverageMap({
   }, [agentResponse]);
 
   // Compute tower counts for each impact area
+  // Use impactAreas prop if available (has correct filtered tower count), otherwise compute from towers
   const areasWithTowerCounts = useMemo(() => {
+    // If impactAreas prop is provided with towerCount, use it as source of truth
+    if (impactAreas && impactAreas.length > 0) {
+      // Create a map of impactAreas by id for quick lookup
+      const impactAreasMap = new Map(impactAreas.map(ia => [ia.id, ia]));
+      
+      return affectedAreas.map(area => {
+        // Try to get towerCount from impactAreas prop first (has correct filtered count)
+        const impactArea = impactAreasMap.get(area.id);
+        if (impactArea && impactArea.towerCount != null) {
+          return { ...area, towerCount: impactArea.towerCount };
+        }
+        // Fallback: compute from towers if impactAreas not available
+        if (!towers || towers.length === 0) {
+          return { ...area, towerCount: 0 };
+        }
+        const towerCount = countTowersInArea(area, towers);
+        return { ...area, towerCount };
+      });
+    }
+    
+    // Fallback: compute from towers if impactAreas prop not provided
     if (!towers || towers.length === 0) {
       return affectedAreas.map(area => ({ ...area, towerCount: 0 }));
     }
@@ -451,7 +578,7 @@ export default function CoverageMap({
       const towerCount = countTowersInArea(area, towers);
       return { ...area, towerCount };
     });
-  }, [affectedAreas, towers]);
+  }, [affectedAreas, towers, impactAreas]);
 
   // Heatmap points from affected area centers
   const heatPoints = useMemo(() => {
@@ -506,48 +633,23 @@ export default function CoverageMap({
                     <div>
                       <b>Severity:</b> {String(a.severityLabel)} ({Math.round(a.severityScore * 100)}%)
                     </div>
-
-                    {/* Display tower count */}
                     <div>
                       <b>Towers affected:</b> {a.towerCount ?? 0}
                     </div>
-
                     {a.confidence != null && (
                       <div>
                         <b>Confidence:</b>{" "}
                         {typeof a.confidence === "number" ? `${Math.round(a.confidence * 100)}%` : String(a.confidence)}
                       </div>
                     )}
-
                     {a.estimated_impact && (
                       <div>
                         <b>Impact:</b> {a.estimated_impact}
                       </div>
                     )}
-
-                    {Array.isArray(a.affected_towers) && a.affected_towers.length > 0 && (
-                      <div style={{ opacity: 0.7, fontSize: 11, marginTop: 4 }}>
-                        <i>Backend reported: {a.affected_towers.length} towers</i>
-                      </div>
-                    )}
-
-                    {a.reasoning && (
-                      <>
-                        <hr />
-                        <div style={{ whiteSpace: "pre-wrap" }}>
-                          <b>Why:</b> {a.reasoning}
-                        </div>
-                      </>
-                    )}
-
-                    {a.mitigation && (
-                      <>
-                        <hr />
-                        <div style={{ whiteSpace: "pre-wrap" }}>
-                          <b>Mitigation:</b> {JSON.stringify(a.mitigation)}
-                        </div>
-                      </>
-                    )}
+                    <div style={{ marginTop: 8, fontSize: 11, color: "rgba(0,0,0,0.6)", fontStyle: "italic" }}>
+                      See right panel for full details
+                    </div>
                   </div>
                 </Popup>
               </ZOrderedRectangle>
@@ -614,18 +716,13 @@ export default function CoverageMap({
               </CircleMarker>
             );
           })}
-      </MapContainer>
-
-      {/* Impact Areas overlay menu (hidden when layout provides toggles) */}
-      {!hideControls && (
-        <ImpactAreasMenu
+        {/* Impact Areas Control - always visible on map */}
+        <ImpactAreasControl
           impactAreas={impactAreas}
           selectedAreaId={selectedAreaId}
           onSelectImpactArea={onSelectImpactArea}
-          isOpen={isMenuOpen}
-          onToggle={() => setIsMenuOpen(!isMenuOpen)}
         />
-      )}
+      </MapContainer>
     </div>
   );
 }

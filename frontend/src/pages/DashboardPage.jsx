@@ -3,7 +3,7 @@ import L from "leaflet";
 import EventPanel from "../components/EventPanel";
 import CoverageMap from "../components/CoverageMap";
 import DetailsPanel from "../components/DetailsPanel";
-import ActionLog from "../components/ActionLog";
+import ImpactAreaReport from "../components/ImpactAreaReport";
 import EmptySelectionPanel from "../components/EmptySelectionPanel";
 import SafetyPanel from "../components/SafetyPanel";
 import towersData from "../data/telus_towers.json";
@@ -138,6 +138,9 @@ export default function DashboardPage({
           severityScore: severityToScore(severity),
           confidence: a.confidence,
           affectedCount: Array.isArray(a.affected_towers) ? a.affected_towers.length : null,
+          reasoning: a.reasoning,
+          estimated_impact: a.estimated_impact,
+          mitigation: a.mitigation_actions || a.mitigation,
           bounds: [
             [minLat, minLon],
             [maxLat, maxLon],
@@ -150,9 +153,10 @@ export default function DashboardPage({
   }, [activeResponse]);
 
   const impactAreasWithCounts = useMemo(() => {
-    if (!towersData?.length) return impactAreas.map((a) => ({ ...a, towerCount: 0 }));
-    return impactAreas.map((a) => ({ ...a, towerCount: countTowersInArea(a, towersData) }));
-  }, [impactAreas]);
+    // Use filtered towers (toRender) to match what's displayed on the map
+    if (!toRender?.length) return impactAreas.map((a) => ({ ...a, towerCount: 0 }));
+    return impactAreas.map((a) => ({ ...a, towerCount: countTowersInArea(a, toRender) }));
+  }, [impactAreas, toRender]);
 
   useEffect(() => {
     if (agentResponse) {
@@ -223,20 +227,14 @@ export default function DashboardPage({
         setSelectedTower(null);
         return;
       }
-      const raw = kpiByTowerId[towerId];
-      const kpi = raw
-        ? {
-            traffic: raw.traffic,
-            latency: raw.latency_ms,
-            loss: raw.packet_loss,
-            energy: raw.energy,
-          }
-        : undefined;
-      setSelectedTower({ ...tower, kpi });
+      // Store only tower data, NOT KPI snapshot
+      // KPI will be looked up fresh from kpiByTowerId when rendering
+      // This ensures both popup and panel always use the latest KPI data
+      setSelectedTower({ ...tower });
       setSelectedAreaId(null);
       setFocusBounds(null);
     },
-    [toRender, getTowerId, kpiByTowerId, setSelectedTower]
+    [toRender, getTowerId, setSelectedTower]
   );
 
   const handleSelectArea = useCallback(
@@ -258,30 +256,6 @@ export default function DashboardPage({
               <div className="noc-title">Event Analysis</div>
               <EventPanel onAnalyze={onAnalyze} loading={loading} />
             </div>
-
-            {affectedAreas?.length > 0 && (
-              <div className="noc-section">
-                <div className="noc-title">Affected Zones</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {affectedAreas.map((z) => (
-                    <div key={z.id} className="noc-card">
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <div style={{ fontWeight: 900 }}>
-                          Severity: {(z.severity * 100).toFixed(0)}%
-                        </div>
-                        <div className="noc-pill">
-                          Conf {(z.confidence * 100).toFixed(0)}%
-                        </div>
-                      </div>
-                      <div className="noc-muted" style={{ fontSize: 12, marginTop: 6 }}>
-                        Towers: {(z.affected_towers || []).join(", ") || "—"}
-                      </div>
-                      <div style={{ fontSize: 13, marginTop: 8 }}>{z.reason}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -350,10 +324,6 @@ export default function DashboardPage({
                   Impact areas
                 </label>
               </div>
-
-              <span className="noc-pill">● Online</span>
-              <span className="noc-pill">● Warning</span>
-              <span className="noc-pill">● Critical</span>
             </div>
 
             <div style={{ padding: 12, height: "100%" }}>
@@ -392,16 +362,22 @@ export default function DashboardPage({
             <div className="noc-section">
               {selectedTower ? (
                 <>
-                  <DetailsPanel tower={selectedTower} />
-                  <SafetyPanel
-                    confidence={affectedAreas?.[0]?.confidence ?? 0.92}
-                    blastRadius={0.2}
-                    cooldownActive={true}
-                    rollbackReady={true}
-                    lastActionStatus={aiActions?.length ? "success" : "idle"}
+                  <DetailsPanel 
+                    tower={selectedTower} kpiByTowerId={kpiByTowerId} getTowerId={getTowerId}
                   />
-                  <ActionLog actions={aiActions} />
+                  <SafetyPanel
+                    towerId={getTowerId(selectedTower)}
+                  />
                 </>
+              ) : selectedAreaId ? (
+                (() => {
+                  const selectedArea = impactAreasWithCounts.find((a) => a.id === selectedAreaId);
+                  return selectedArea ? (
+                    <ImpactAreaReport area={selectedArea} />
+                  ) : (
+                    <EmptySelectionPanel />
+                  );
+                })()
               ) : (
                 <EmptySelectionPanel />
               )}
