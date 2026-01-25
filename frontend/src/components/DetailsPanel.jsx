@@ -24,8 +24,6 @@ function formatLoss01(x) {
 function formatW(x) {
   return `${Math.round(x ?? 0)}W`;
 }
-
-// tiny sparkline (no deps)
 function Sparkline({ data = [] }) {
   const w = 260;
   const h = 70;
@@ -114,8 +112,6 @@ export default function DetailsPanel({ tower }) {
 
   const sev = clamp01(tower.severity ?? tower.kpi?.traffic ?? 0);
   const s = severityLabel(sev);
-
-  // demo metrics (use real values if provided)
   const traffic = clamp01(tower.kpi?.traffic ?? sev);
   const latency = tower.kpi?.latency ?? Math.round(14 + sev * 40);
   const loss = clamp01(tower.kpi?.loss ?? sev * 0.02);

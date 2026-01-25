@@ -1,16 +1,21 @@
-import {
-  MapContainer,
-  TileLayer,
-  CircleMarker,
-  Popup,
-  useMapEvents,
-} from "react-leaflet";
+import {MapContainer,TileLayer,CircleMarker,Popup,useMapEvents,}
 
+from "react-leaflet";
+function clamp01(x) {
+  return Math.max(0, Math.min(1, x ?? 0));
+}
 function colorFromTraffic(traffic) {
   if (traffic == null) return "#3388ff";
-  if (traffic > 0.8) return "#e53935";
-  if (traffic > 0.5) return "#fb8c00";
-  return "#43a047";
+  if (traffic > 0.85) return "#ef4444";
+  if (traffic > 0.6) return "#f59e0b";
+  return "#22c55e";
+}
+
+function statusFromTraffic(traffic01) {
+  const t = clamp01(traffic01);
+  if (t > 0.85) return { label: "critical", color: "#ef4444" };
+  if (t > 0.6) return { label: "warning", color: "#f59e0b" };
+  return { label: "online", color: "#22c55e" };
 }
 
 function MapClickHandler({ enabled, onPick }) {
@@ -26,7 +31,89 @@ function MapClickHandler({ enabled, onPick }) {
   });
   return null;
 }
+function TowerPopupCard({ tower, kpi, onViewDetails }) {
+  const traffic = clamp01(kpi?.traffic ?? tower?.severity ?? 0);
+  const sevPct = Math.round(traffic * 100);
+  const st = statusFromTraffic(traffic);
+  const displayName = tower?.name ?? `Tower ${tower?.id ?? ""}`;
 
+  return (
+    <div
+      style={{
+        width: 260,
+        padding: 0,
+        fontFamily:
+          'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: "12px 12px 10px 12px",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ fontWeight: 900, fontSize: 16, color: "rgba(255,255,255,0.92)" }}>
+            {displayName}
+          </div>
+          <div
+            style={{
+              padding: "4px 10px",
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(255,255,255,0.03)",
+              fontSize: 12,
+              fontWeight: 900,
+              color: st.color,
+              textTransform: "capitalize",
+              lineHeight: "16px",
+              height: 22,
+            }}
+          >
+            {st.label}
+          </div>
+        </div>
+      </div>
+      {/* Body */}
+      <div style={{ padding: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", rowGap: 8, columnGap: 12 }}>
+          <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>Status</div>
+          <div style={{ color: st.color, fontWeight: 900, fontSize: 12, textTransform: "capitalize" }}>
+            {st.label}
+          </div>
+
+          <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>Severity</div>
+          <div style={{ color: "rgba(255,255,255,0.90)", fontWeight: 900, fontSize: 12 }}>
+            {sevPct}%
+          </div>
+
+          <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>ID</div>
+          <div style={{ color: "rgba(255,255,255,0.90)", fontWeight: 900, fontSize: 12 }}>
+            {tower?.id}
+          </div>
+        </div>
+
+        <button
+          onClick={onViewDetails}
+          style={{
+            marginTop: 12,
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(37,99,235,0.95)",
+            color: "rgba(255,255,255,0.95)",
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          View Details
+        </button>
+      </div>
+    </div>
+  );
+}
 export default function CoverageMap({
   towers,
   center,
@@ -47,12 +134,9 @@ export default function CoverageMap({
           attribution="&copy; OpenStreetMap contributors"
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-
         <MapClickHandler enabled={pickingEventLocation} onPick={onPickLocation} />
-
         {towers.map((t) => {
           const kpi = kpiById[t.id];
-
           return (
             <CircleMarker
               key={t.id}
@@ -60,39 +144,18 @@ export default function CoverageMap({
               radius={5}
               pathOptions={{
                 color: colorFromTraffic(kpi?.traffic),
-                fillOpacity: 0.85,
+                fillOpacity: 0.9,
               }}
               eventHandlers={{
                 click: () => onSelectTower?.(t.id),
               }}
             >
-              <Popup>
-                <div style={{ fontSize: 13 }}>
-                  <div>
-                    <b>ID:</b> {t.id}
-                  </div>
-                  <div>
-                    <b>Radio:</b> {t.radio}
-                  </div>
-
-                  {kpi && (
-                    <>
-                      <hr />
-                      <div>
-                        <b>Traffic:</b> {(kpi.traffic * 100).toFixed(0)}%
-                      </div>
-                      <div>
-                        <b>Latency:</b> {kpi.latency.toFixed(1)} ms
-                      </div>
-                      <div>
-                        <b>Packet Loss:</b> {(kpi.loss * 100).toFixed(2)}%
-                      </div>
-                      <div style={{ opacity: 0.6, marginTop: 4 }}>
-                        updated {new Date(kpi.updatedAt).toLocaleTimeString()}
-                      </div>
-                    </>
-                  )}
-                </div>
+              <Popup closeButton={true} autoPan={true}>
+                <TowerPopupCard
+                  tower={t}
+                  kpi={kpi}
+                  onViewDetails={() => onSelectTower?.(t.id)}
+                />
               </Popup>
             </CircleMarker>
           );

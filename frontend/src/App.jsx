@@ -23,8 +23,6 @@ function mapSeverity01(sev) {
       return 0;
   }
 }
-
-// If backend doesn't provide a zone center yet, estimate it from affected towers
 function computeZoneCenterFromTowers(affectedTowerIds, towers) {
   const pts = towers.filter((t) => affectedTowerIds.includes(t.id));
   if (!pts.length) return null;
@@ -49,16 +47,13 @@ function normalizeZones(aiResponse, towers) {
         affected_towers: affectedTowers,
         reason: area.reason ?? "",
         actions: area.actions ?? [],
-        // If backend provides center later, it will just work:
         center:
           area.center ??
           computeZoneCenterFromTowers(affectedTowers, towers) ??
           null,
-        // optional demo value
         confidence: area.confidence ?? Math.min(0.99, 0.6 + severity01 * 0.35),
-        // include KPIs if present
         latency: area.latency,
-        packet_loss_percent: area.packet_loss, // keep as percent for display/logging
+        packet_loss_percent: area.packet_loss,
       });
     });
   });
@@ -82,10 +77,7 @@ export default function App() {
     setAiActions([]);
 
     try {
-      // demo delay
       await new Promise((r) => setTimeout(r, 500));
-
-      // MOCK (replace with backend later)
       const aiResponse = {
         events: [
           {
@@ -95,7 +87,7 @@ export default function App() {
                 severity: "high",
                 affected_towers: ["TWR_101", "TWR_087"],
                 latency: 120,
-                packet_loss: 2.3, // <-- percent
+                packet_loss: 2.3,
                 reason: "High expected crowd + towers already at 70% load",
                 actions: [
                   {
@@ -110,12 +102,8 @@ export default function App() {
           },
         ],
       };
-
-      // ✅ Correct, consistent zones (no undefined fields)
       const zones = normalizeZones(aiResponse, towers);
       setAffectedAreas(zones);
-
-      // ✅ Update towers (severity + KPI) — FIX packet loss units
       setTowers((prevTowers) =>
         prevTowers.map((t) => {
           const zone = zones.find((z) => z.affected_towers.includes(t.id));
@@ -124,7 +112,7 @@ export default function App() {
           const latency = typeof zone?.latency === "number" ? zone.latency : 20 + sev * 100;
           const lossFraction =
             typeof zone?.packet_loss_percent === "number"
-              ? zone.packet_loss_percent / 100 // ✅ percent -> fraction
+              ? zone.packet_loss_percent / 100
               : sev * 0.02;
 
           return {
@@ -139,8 +127,6 @@ export default function App() {
           };
         })
       );
-
-      // ✅ Log actions (include reason + confidence for nicer UI later)
       setAiActions(
         zones.flatMap((z) =>
           (z.actions || []).map((a) => ({
