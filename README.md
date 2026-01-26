@@ -519,12 +519,17 @@ MIT License — feel free to use and modify with attribution.
 
 ---
 
-## 👤 Author / Contributors
+## 👤 Authors / Contributors
 
 **Ilian Khankhalaev**  
 _BSc Computing Science, Simon Fraser University_  
 📍 Vancouver, BC  |  [florykhan@gmail.com](mailto:florykhan@gmail.com)  |  [GitHub](https://github.com/florykhan)  |  [LinkedIn](https://www.linkedin.com/in/ilian-khankhalaev/)
 
+**Nikolay Deinego**  
+
+**Rohan Nair**  
+
+**Dyk Kyong Do**  
 ---
 
 ## 🙏 Credits
