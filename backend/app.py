@@ -18,7 +18,17 @@ from services.kpi_service import get_kpi_service
 # ============================================================================
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend integration
+
+# Configure CORS for production (GitHub Pages) and local development
+CORS(app, 
+     origins=[
+         "https://florykhan.github.io",
+         "http://localhost:5173",
+         "http://127.0.0.1:5173"
+     ],
+     methods=["GET", "POST", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization"],
+     supports_credentials=False)
 
 # Configure Flask
 app.config['JSON_SORT_KEYS'] = False

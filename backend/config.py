@@ -54,8 +54,8 @@ class Config:
     
     # Flask settings
     FLASK_HOST = "0.0.0.0"
-    FLASK_PORT = 5001
-    FLASK_DEBUG = True
+    FLASK_PORT = int(os.getenv("PORT", 5001))  # Use PORT env var for production (default 5001)
+    FLASK_DEBUG = os.getenv("FLASK_DEBUG", "False").lower() == "true"  # Disable debug in production
     
     # ========================================================================
     # MODEL PARAMETERS
