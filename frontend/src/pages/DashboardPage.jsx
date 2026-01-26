@@ -8,7 +8,7 @@ import EmptySelectionPanel from "../components/EmptySelectionPanel";
 import SafetyPanel from "../components/SafetyPanel";
 import towersData from "../data/telus_towers.json";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001";
+const API_BASE = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 const KPIS_PATH = "/api/kpis";
 const MAX_RENDER = 5000;
 const center = [56.1304, -106.3468];

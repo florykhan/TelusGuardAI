@@ -63,7 +63,7 @@ export default function CoverageMapPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [agentError, setAgentError] = useState(null);
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001";
+  const API_BASE = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const ANALYZE_PATH = "/api/analyze-network-impact";
   const KPIS_PATH = "/api/kpis";  
 

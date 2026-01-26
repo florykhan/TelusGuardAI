@@ -10,15 +10,15 @@ Create a `.env` file in the `frontend/` directory (or copy from `.env.example`):
 
 ```bash
 # For local development (default)
-# Leave unset or use: http://127.0.0.1:5001
+# Leave unset to use default: http://localhost:5000
 
 # For production (GitHub Pages)
-VITE_API_BASE_URL=https://your-backend-url.com
+VITE_BACKEND_URL=https://telusguardai-backend.onrender.com
 ```
 
-The frontend will automatically use `import.meta.env.VITE_API_BASE_URL` if set, otherwise defaults to `http://127.0.0.1:5001` for local development.
+The frontend will automatically use `import.meta.env.VITE_BACKEND_URL` if set, otherwise defaults to `http://localhost:5000` for local development.
 
-**Note**: For GitHub Pages deployment, you must set `VITE_API_BASE_URL` to your deployed backend URL. This is done at build time, so set it before running `npm run build`.
+**Note**: For GitHub Pages deployment, you must set `VITE_BACKEND_URL` to your deployed backend URL. This is done at build time, so set it before running `npm run build`.
 
 ## Local Development
 
@@ -30,7 +30,7 @@ npm install
 npm run dev
 ```
 
-The dev server will proxy API calls to the backend URL specified in your `.env` file (or default to `http://127.0.0.1:5001`).
+The dev server will use the backend URL specified in your `.env` file (or default to `http://localhost:5000`).
 
 ## Building for Production
 
@@ -46,7 +46,7 @@ The `dist/` folder contains the production build that can be deployed to GitHub 
 
 ## Deployment to GitHub Pages
 
-1. Set `VITE_API_BASE_URL` in your environment or `.env` file to your deployed backend URL
+1. Set `VITE_BACKEND_URL` in your environment or `.env` file to your deployed backend URL
 2. Build the project: `npm run build`
 3. Deploy the `dist/` folder to GitHub Pages (via GitHub Actions or manual upload)
 
