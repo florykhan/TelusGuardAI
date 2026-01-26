@@ -1,16 +1,91 @@
-# React + Vite
+# TelusGuardAI Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite frontend for the Network Impact Analyzer, deployed on GitHub Pages.
 
-Currently, two official plugins are available:
+## Environment Configuration
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Setting Backend URL
 
-## React Compiler
+Create a `.env` file in the `frontend/` directory (or copy from `.env.example`):
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# For local development (default)
+# Leave unset or use: http://127.0.0.1:5001
 
-## Expanding the ESLint configuration
+# For production (GitHub Pages)
+VITE_API_BASE_URL=https://your-backend-url.com
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The frontend will automatically use `import.meta.env.VITE_API_BASE_URL` if set, otherwise defaults to `http://127.0.0.1:5001` for local development.
+
+**Note**: For GitHub Pages deployment, you must set `VITE_API_BASE_URL` to your deployed backend URL. This is done at build time, so set it before running `npm run build`.
+
+## Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start dev server (runs on http://localhost:5173)
+npm run dev
+```
+
+The dev server will proxy API calls to the backend URL specified in your `.env` file (or default to `http://127.0.0.1:5001`).
+
+## Building for Production
+
+```bash
+# Build for production
+npm run build
+
+# Preview production build locally
+npm run preview
+```
+
+The `dist/` folder contains the production build that can be deployed to GitHub Pages or any static hosting service.
+
+## Deployment to GitHub Pages
+
+1. Set `VITE_API_BASE_URL` in your environment or `.env` file to your deployed backend URL
+2. Build the project: `npm run build`
+3. Deploy the `dist/` folder to GitHub Pages (via GitHub Actions or manual upload)
+
+See `.github/workflows/deploy-pages.yml` for automated deployment.
+
+## Error Handling
+
+The frontend gracefully handles backend connection failures:
+
+- **Network errors**: Shows user-friendly error messages when the backend is unreachable
+- **KPI fetch failures**: Silently fails (non-critical, doesn't disrupt UI)
+- **Analysis errors**: Displays error messages in the UI with actionable information
+
+## Project Structure
+
+```
+frontend/
+├── src/
+│   ├── components/     # React components
+│   │   ├── CoverageMap.jsx
+│   │   ├── EventPanel.jsx
+│   │   ├── DetailsPanel.jsx
+│   │   └── ...
+│   ├── pages/         # Page components
+│   │   ├── DashboardPage.jsx
+│   │   └── CoverageMapPage.jsx
+│   ├── data/          # Static data files
+│   │   └── telus_towers.json
+│   └── App.jsx        # Main app component
+├── public/            # Static assets
+├── .env.example       # Environment variable template
+└── vite.config.js    # Vite configuration
+```
+
+## Dependencies
+
+- React 18+
+- Vite
+- Leaflet & React-Leaflet (maps)
+- React Router DOM
+
+See `package.json` for complete dependency list.

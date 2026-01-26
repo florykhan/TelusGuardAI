@@ -105,7 +105,16 @@ export default function App() {
       setAiActions(deriveAiActions(zones));
     } catch (e) {
       console.error(e);
-      setError(e.message || "Something went wrong. Please try again.");
+      // Improve error messages for network failures
+      let errorMessage = "Something went wrong. Please try again.";
+      if (e instanceof TypeError && e.message.includes("fetch")) {
+        errorMessage = `Cannot connect to backend at ${API_BASE}. Please ensure the backend server is running and accessible.`;
+      } else if (e.message.includes("CORS") || e.message.includes("Failed to fetch")) {
+        errorMessage = `Backend connection failed. Check if ${API_BASE} is accessible and CORS is configured correctly.`;
+      } else if (e.message) {
+        errorMessage = e.message;
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

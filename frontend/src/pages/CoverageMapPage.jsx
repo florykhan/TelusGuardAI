@@ -93,7 +93,16 @@ export default function CoverageMapPage() {
       const data = await res.json();
       setAgentResponse(data);
     } catch (e) {
-      setAgentError(e.message || String(e));
+      // Improve error messages for network failures
+      let errorMessage = String(e);
+      if (e instanceof TypeError && e.message.includes("fetch")) {
+        errorMessage = `Cannot connect to backend at ${API_BASE}. Please ensure the backend server is running.`;
+      } else if (e.message.includes("CORS") || e.message.includes("Failed to fetch")) {
+        errorMessage = `Backend connection failed. Check if ${API_BASE} is accessible.`;
+      } else if (e.message) {
+        errorMessage = e.message;
+      }
+      setAgentError(errorMessage);
     } finally {
       setIsRunning(false);
     }
@@ -289,8 +298,10 @@ export default function CoverageMapPage() {
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        console.error(`KPI fetch failed ${res.status}: ${text}`);
+        // Silently fail for KPI fetches to avoid disrupting UI
+        if (import.meta.env.DEV) {
+          console.warn(`KPI fetch failed ${res.status}`);
+        }
         return;
       }
 
@@ -302,7 +313,10 @@ export default function CoverageMapPage() {
         }
       }
     } catch (e) {
-      console.error("Error fetching KPIs:", e);
+      // Silently handle network errors for KPI fetches (non-critical)
+      if (import.meta.env.DEV) {
+        console.error("Error fetching KPIs:", e);
+      }
     } finally {
       setFetchInProgress(false);
     }

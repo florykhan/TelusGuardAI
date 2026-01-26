@@ -187,13 +187,22 @@ export default function DashboardPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tower_ids: capped, options: { mode: "sim", tick_ms: 1000 } }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        // Silently fail for KPI fetches to avoid disrupting UI
+        if (import.meta.env.DEV) {
+          console.warn(`KPI fetch failed: ${res.status}`);
+        }
+        return;
+      }
       const data = await res.json();
       if (data.kpis) {
         setKpiByTowerId((prev) => ({ ...prev, ...data.kpis }));
       }
     } catch (e) {
-      console.error("KPI fetch error:", e);
+      // Silently handle network errors for KPI fetches (non-critical)
+      if (import.meta.env.DEV) {
+        console.error("KPI fetch error:", e);
+      }
     } finally {
       fetchInProgressRef.current = false;
     }
