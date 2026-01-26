@@ -4,6 +4,7 @@ Unified AI model client for all endpoint calls
 
 import aiohttp
 import asyncio
+import time
 from typing import Optional
 from config import Config
 from utils.logger import logger
@@ -85,18 +86,25 @@ class AIModelClient:
             }
             url = f"{endpoint}/v1/completions"
         
-        # Retry loop
+        # Retry loop with detailed logging
         any_timeout = False
+        start_time = time.time()
+        logger.info(f"🚀 Starting LLM call to {endpoint} (timeout: {Config.AI_REQUEST_TIMEOUT}s, max_retries: {max_retries})")
+        
         for attempt in range(max_retries):
+            attempt_start = time.time()
             try:
                 connector = aiohttp.TCPConnector(ssl=False)
                 async with aiohttp.ClientSession(connector=connector) as session:
+                    logger.info(f"📡 LLM call attempt {attempt + 1}/{max_retries} starting...")
                     async with session.post(
                         url,
                         json=payload,
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=Config.AI_REQUEST_TIMEOUT)
                     ) as response:
+                        elapsed = time.time() - attempt_start
+                        logger.info(f"📥 LLM response received (status: {response.status}, elapsed: {elapsed:.2f}s)")
                         
                         if response.status == 200:
                             data = await response.json()
@@ -105,8 +113,9 @@ class AIModelClient:
                             else:
                                 text = data.get("choices", [{}])[0].get("text", "")
                             
+                            total_elapsed = time.time() - start_time
                             if text:
-                                logger.info(f"✅ Model call successful ({len(text)} chars)")
+                                logger.info(f"✅ Model call successful ({len(text)} chars, total elapsed: {total_elapsed:.2f}s)")
                                 return text
                             else:
                                 logger.warning("⚠️  Empty response from model")
@@ -117,31 +126,43 @@ class AIModelClient:
                                 f"❌ Model API error: {response.status} - {error_text[:200]}"
                             )
                 
-            except (GeneratorExit, asyncio.CancelledError):
+            except (GeneratorExit, asyncio.CancelledError) as e:
+                elapsed = time.time() - attempt_start
+                logger.warning(f"🛑 LLM call cancelled (attempt {attempt + 1}, elapsed: {elapsed:.2f}s)")
                 raise
             except asyncio.TimeoutError:
                 any_timeout = True
-                logger.warning(f"⏰ Timeout on attempt {attempt + 1}/{max_retries}")
+                elapsed = time.time() - attempt_start
+                logger.warning(f"⏰ Timeout on attempt {attempt + 1}/{max_retries} (elapsed: {elapsed:.2f}s)")
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)
+                    backoff = 2 ** attempt
+                    logger.info(f"⏳ Retrying in {backoff}s...")
+                    await asyncio.sleep(backoff)
                     
             except aiohttp.ClientError as e:
-                logger.error(f"🔌 Connection error: {str(e)}")
+                elapsed = time.time() - attempt_start
+                logger.error(f"🔌 Connection error on attempt {attempt + 1} (elapsed: {elapsed:.2f}s): {str(e)}")
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)
+                    backoff = 2 ** attempt
+                    logger.info(f"⏳ Retrying in {backoff}s...")
+                    await asyncio.sleep(backoff)
                     
             except Exception as e:
-                logger.error(f"💥 Unexpected error: {str(e)}")
+                elapsed = time.time() - attempt_start
+                logger.error(f"💥 Unexpected error on attempt {attempt + 1} (elapsed: {elapsed:.2f}s): {str(e)}")
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)
+                    backoff = 2 ** attempt
+                    logger.info(f"⏳ Retrying in {backoff}s...")
+                    await asyncio.sleep(backoff)
         
+        total_elapsed = time.time() - start_time
         if any_timeout:
-            logger.error(f"❌ Model call timed out after {max_retries} attempts ({Config.AI_REQUEST_TIMEOUT}s each)")
+            logger.error(f"❌ Model call timed out after {max_retries} attempts (timeout: {Config.AI_REQUEST_TIMEOUT}s each, total elapsed: {total_elapsed:.2f}s)")
             raise ModelTimeoutError(
                 f"AI model request timed out after {max_retries} attempts "
-                f"(timeout {Config.AI_REQUEST_TIMEOUT}s per attempt)."
+                f"(timeout {Config.AI_REQUEST_TIMEOUT}s per attempt, total elapsed: {total_elapsed:.2f}s)."
             )
-        logger.error(f"❌ All {max_retries} attempts failed")
+        logger.error(f"❌ All {max_retries} attempts failed (total elapsed: {total_elapsed:.2f}s)")
         return ""
     
     @staticmethod

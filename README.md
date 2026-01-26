@@ -54,19 +54,26 @@ gunicorn app:app --bind 0.0.0.0:5001 --workers 4 --timeout 180 --graceful-timeou
 
 ### Render Start Command
 
-If deploying to [Render](https://render.com), set the **Start Command** to:
+If deploying to [Render](https://render.com), set the **Root Directory** to the project root (where `Procfile` is located), and set the **Start Command** to:
 
 ```
-cd backend && pip install -r requirements.txt && gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --timeout 180 --graceful-timeout 180 --keep-alive 5
+gunicorn backend.app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 180 --graceful-timeout 180 --keep-alive 5
 ```
 
-Or, if dependencies are installed in the build step:
+Or, if your Render **Root Directory** is set to `backend`, use:
 
 ```
-cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --timeout 180 --graceful-timeout 180 --keep-alive 5
+gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 180 --graceful-timeout 180 --keep-alive 5
 ```
 
-Render sets `PORT` automatically. The project root includes a `Procfile` that uses the same gunicorn settings; Render will use it if no custom Start Command is set.
+**Important settings:**
+- `--workers 1`: Single worker to avoid memory issues with async code
+- `--threads 4`: Multiple threads per worker for concurrent requests
+- `--timeout 180`: Worker timeout (180s) to allow long AI model calls
+- `--graceful-timeout 180`: Grace period for workers to finish before force-kill
+- `--keep-alive 5`: Keep connections alive for 5 seconds
+
+Render sets `PORT` automatically. The project root includes a `Procfile` with these settings; Render will use it if no custom Start Command is set.
 
 ### API Endpoints
 

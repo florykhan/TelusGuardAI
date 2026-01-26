@@ -5,9 +5,11 @@ Analyzes gathered data and generates geographic impact assessments
 
 import json
 import re
+import time
+import asyncio
 from typing import List, Dict, Any
 from models.data_models import Event, AffectedArea, EventMetadata, IntelligenceData
-from services.ai_client import AIModelClient
+from services.ai_client import AIModelClient, ModelTimeoutError
 from utils.logger import logger, timing_decorator
 from config import Config
 
@@ -35,33 +37,58 @@ class GeospatialReasoningAgent:
             List of Event objects with geographic analysis
         """
         
-        logger.info("🤖 Agent 3: Geospatial Reasoning - Analyzing impact...")
+        logger.info("🤖 Agent 3: Geospatial Reasoning - Starting analysis...")
+        agent_start = time.time()
         
         # Construct analysis prompt
+        logger.info("📝 Building analysis prompts...")
         system_prompt = GeospatialReasoningAgent._build_system_prompt()
         user_prompt = GeospatialReasoningAgent._build_user_prompt(
             event_metadata,
             intelligence_data
         )
         
-        # Call GPT model for analysis
-        response = await AIModelClient.call_deepseek(
-            prompt=user_prompt,
-            system_prompt=system_prompt
-        )
+        # Call DeepSeek model for analysis with cancellation handling
+        try:
+            logger.info("🚀 Calling DeepSeek model for geospatial analysis...")
+            llm_start = time.time()
+            
+            response = await AIModelClient.call_deepseek(
+                prompt=user_prompt,
+                system_prompt=system_prompt
+            )
+            
+            llm_elapsed = time.time() - llm_start
+            logger.info(f"✅ DeepSeek model call completed (elapsed: {llm_elapsed:.2f}s)")
+            
+        except asyncio.CancelledError:
+            elapsed = time.time() - agent_start
+            logger.warning(f"🛑 Agent 3 cancelled by worker timeout (elapsed: {elapsed:.2f}s)")
+            raise
+        except ModelTimeoutError as e:
+            elapsed = time.time() - agent_start
+            logger.error(f"⏰ Agent 3 model call timed out (elapsed: {elapsed:.2f}s): {e}")
+            raise
+        except Exception as e:
+            elapsed = time.time() - agent_start
+            logger.error(f"💥 Agent 3 error during model call (elapsed: {elapsed:.2f}s): {str(e)}")
+            raise
         
         # Parse response into Event objects
         try:
+            logger.info("📊 Parsing model response into events...")
             events = GeospatialReasoningAgent._parse_analysis(response)
-            logger.info(f"✅ Identified {len(events)} events")
+            total_elapsed = time.time() - agent_start
             
+            logger.info(f"✅ Agent 3 complete: Identified {len(events)} events")
             total_areas = sum(len(e.affected_areas) for e in events)
-            logger.info(f"📍 Found {total_areas} affected areas total")
+            logger.info(f"📍 Found {total_areas} affected areas total (total elapsed: {total_elapsed:.2f}s)")
             
             return events
             
         except Exception as e:
-            logger.error(f"💥 Error parsing analysis: {str(e)}")
+            total_elapsed = time.time() - agent_start
+            logger.error(f"💥 Error parsing analysis (elapsed: {total_elapsed:.2f}s): {str(e)}")
             logger.warning("⚠️  Generating fallback events")
             return GeospatialReasoningAgent._generate_fallback_events(
                 event_metadata,
