@@ -11,6 +11,7 @@ from utils.logger import logger
 from utils.cache import cache
 from config import Config
 from services.kpi_service import get_kpi_service
+from services.ai_client import ModelTimeoutError
 
 
 # ============================================================================
@@ -41,7 +42,9 @@ app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 
 def run_async(coro):
     """
-    Helper to run async functions in Flask sync context
+    Helper to run async functions in Flask sync context.
+    CancelledError / GeneratorExit are not caught; they propagate so workers
+    can exit cleanly when gunicorn sends SIGTERM.
     """
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -159,6 +162,14 @@ def analyze_network_impact():
         logger.info(f"✅ Analysis complete, returning {len(result.events)} events")
         
         return jsonify(response_data), 200
+
+    except ModelTimeoutError as e:
+        logger.warning(f"⏰ Model timeout in analyze endpoint: {e}")
+        return jsonify({
+            "error": "model_timeout",
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }), 504
         
     except Exception as e:
         logger.error(f"💥 Error in analyze endpoint: {str(e)}")

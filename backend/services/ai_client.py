@@ -9,6 +9,10 @@ from config import Config
 from utils.logger import logger
 
 
+class ModelTimeoutError(Exception):
+    """Raised when the model API call times out after retries."""
+
+
 class AIModelClient:
     """
     Unified client for making calls to AI model endpoints
@@ -82,21 +86,20 @@ class AIModelClient:
             url = f"{endpoint}/v1/completions"
         
         # Retry loop
+        any_timeout = False
         for attempt in range(max_retries):
             try:
-                # Disable SSL verification for internal APIs
                 connector = aiohttp.TCPConnector(ssl=False)
                 async with aiohttp.ClientSession(connector=connector) as session:
                     async with session.post(
-                        url,  # Use chat/completions endpoint
+                        url,
                         json=payload,
                         headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=Config.REQUEST_TIMEOUT)
+                        timeout=aiohttp.ClientTimeout(total=Config.AI_REQUEST_TIMEOUT)
                     ) as response:
                         
                         if response.status == 200:
                             data = await response.json()
-                            # Extract text from chat completion response
                             if use_chat:
                                 text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
                             else:
@@ -114,10 +117,13 @@ class AIModelClient:
                                 f"❌ Model API error: {response.status} - {error_text[:200]}"
                             )
                 
+            except (GeneratorExit, asyncio.CancelledError):
+                raise
             except asyncio.TimeoutError:
+                any_timeout = True
                 logger.warning(f"⏰ Timeout on attempt {attempt + 1}/{max_retries}")
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    await asyncio.sleep(2 ** attempt)
                     
             except aiohttp.ClientError as e:
                 logger.error(f"🔌 Connection error: {str(e)}")
@@ -129,7 +135,12 @@ class AIModelClient:
                 if attempt < max_retries - 1:
                     await asyncio.sleep(2 ** attempt)
         
-        # All retries failed
+        if any_timeout:
+            logger.error(f"❌ Model call timed out after {max_retries} attempts ({Config.AI_REQUEST_TIMEOUT}s each)")
+            raise ModelTimeoutError(
+                f"AI model request timed out after {max_retries} attempts "
+                f"(timeout {Config.AI_REQUEST_TIMEOUT}s per attempt)."
+            )
         logger.error(f"❌ All {max_retries} attempts failed")
         return ""
     

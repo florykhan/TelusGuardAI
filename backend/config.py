@@ -43,7 +43,8 @@ class Config:
     
     # API limits
     MAX_SEARCH_QUERIES = 5
-    REQUEST_TIMEOUT = 30  # seconds
+    REQUEST_TIMEOUT = 30  # seconds (web search, weather, etc.)
+    AI_REQUEST_TIMEOUT = 120  # seconds for model calls (Gemma, DeepSeek, GPT)
     
     # Caching
     CACHE_TTL = 300  # 5 minutes in seconds

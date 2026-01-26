@@ -39,16 +39,34 @@ The server will start on `http://0.0.0.0:5001` (or the port specified by `PORT` 
 
 ### Production Deployment with Gunicorn
 
+Use extended timeouts so AI agent requests (Gemma, DeepSeek, GPT) can complete before workers are killed:
+
 ```bash
 cd backend
 pip install -r requirements.txt
-gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120
+gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --timeout 180 --graceful-timeout 180 --keep-alive 5
 ```
 
 Or if `PORT` is not set:
 ```bash
-gunicorn app:app --bind 0.0.0.0:5001 --workers 4 --timeout 120
+gunicorn app:app --bind 0.0.0.0:5001 --workers 4 --timeout 180 --graceful-timeout 180 --keep-alive 5
 ```
+
+### Render Start Command
+
+If deploying to [Render](https://render.com), set the **Start Command** to:
+
+```
+cd backend && pip install -r requirements.txt && gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --timeout 180 --graceful-timeout 180 --keep-alive 5
+```
+
+Or, if dependencies are installed in the build step:
+
+```
+cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --timeout 180 --graceful-timeout 180 --keep-alive 5
+```
+
+Render sets `PORT` automatically. The project root includes a `Procfile` that uses the same gunicorn settings; Render will use it if no custom Start Command is set.
 
 ### API Endpoints
 
