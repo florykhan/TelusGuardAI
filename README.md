@@ -523,13 +523,20 @@ MIT License — feel free to use and modify with attribution.
 
 **Ilian Khankhalaev**  
 _BSc Computing Science, Simon Fraser University_  
-📍 Vancouver, BC  |  [florykhan@gmail.com](mailto:florykhan@gmail.com)  |  [GitHub](https://github.com/florykhan)  |  [LinkedIn](https://www.linkedin.com/in/ilian-khankhalaev/)
+📍 Vancouver, BC  | [GitHub](https://github.com/florykhan)  |  [LinkedIn](https://www.linkedin.com/in/ilian-khankhalaev/)
 
 **Nikolay Deinego**  
+_BSc Computing Science, Simon Fraser University_  
+📍 Vancouver, BC  | [GitHub](https://github.com/Deinick)  |  [LinkedIn](https://www.linkedin.com/in/nikolay-deinego/)
 
-**Rohan Nair**  
+**Rohan Nair**
+_BSc Computing Science, University of Toronto_  
+📍 Toronto, ON  | [GitHub](https://github.com/rohannair2022)  |  [LinkedIn](https://www.linkedin.com/in/rohansunilkumarnair/)
 
 **Dyk Kyong Do**  
+_BSc Computing Science, Simon Fraser University_  
+📍 Vancouver, BC  | [GitHub](https://github.com/dykkyongdo)  |  [LinkedIn](https://www.linkedin.com/in/dyk-kyong-do/)
+
 ---
 
 ## 🙏 Credits
