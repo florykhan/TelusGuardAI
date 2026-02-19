@@ -1,91 +1,56 @@
 # TelusGuardAI Frontend
 
-React + Vite frontend for the Network Impact Analyzer, deployed on GitHub Pages.
+React + Vite frontend for the **Network Impact Analyzer**: interactive map (Leaflet), query input, tower details, and impact reports. Deployed on GitHub Pages.
 
-## Environment Configuration
+---
 
-### Setting Backend URL
+## 📄 Full Documentation
 
-Create a `.env` file in the `frontend/` directory (or copy from `.env.example`):
+All detailed setup, environment, deployment, error handling, and project context (agents, datasets, APIs) are in the **project report:**
 
-```bash
-# For local development (default)
-# Leave unset to use default: http://localhost:5000
+👉 **[REPORT.md](../REPORT.md)**
 
-# For production (GitHub Pages)
-VITE_BACKEND_URL=https://telusguardai-backend.onrender.com
-```
+---
 
-The frontend will automatically use `import.meta.env.VITE_BACKEND_URL` if set, otherwise defaults to `http://localhost:5000` for local development.
+## 🧱 Frontend Structure
 
-**Note**: For GitHub Pages deployment, you must set `VITE_BACKEND_URL` to your deployed backend URL. This is done at build time, so set it before running `npm run build`.
-
-## Local Development
-
-```bash
-# Install dependencies
-npm install
-
-# Start dev server (runs on http://localhost:5173)
-npm run dev
-```
-
-The dev server will use the backend URL specified in your `.env` file (or default to `http://localhost:5000`).
-
-## Building for Production
-
-```bash
-# Build for production
-npm run build
-
-# Preview production build locally
-npm run preview
-```
-
-The `dist/` folder contains the production build that can be deployed to GitHub Pages or any static hosting service.
-
-## Deployment to GitHub Pages
-
-1. Set `VITE_BACKEND_URL` in your environment or `.env` file to your deployed backend URL
-2. Build the project: `npm run build`
-3. Deploy the `dist/` folder to GitHub Pages (via GitHub Actions or manual upload)
-
-See `.github/workflows/deploy-pages.yml` for automated deployment.
-
-## Error Handling
-
-The frontend gracefully handles backend connection failures:
-
-- **Network errors**: Shows user-friendly error messages when the backend is unreachable
-- **KPI fetch failures**: Silently fails (non-critical, doesn't disrupt UI)
-- **Analysis errors**: Displays error messages in the UI with actionable information
-
-## Project Structure
+Exact folder layout:
 
 ```
 frontend/
-├── src/
-│   ├── components/     # React components
-│   │   ├── CoverageMap.jsx
-│   │   ├── EventPanel.jsx
-│   │   ├── DetailsPanel.jsx
+├── public/                                  # Static assets served by the app
+├── src/                                     # Application source code
+│   ├── components/                          # React components
+│   │   ├── CoverageMap.jsx                  # Interactive Leaflet map component
+│   │   ├── EventPanel.jsx                   # Query input and analysis trigger
+│   │   ├── DetailsPanel.jsx                 # Tower details and KPI display
+│   │   ├── ImpactAreaReport.jsx             # Affected area analysis report
+│   │   ├── SafetyPanel.jsx                  # Network safety metrics
 │   │   └── ...
-│   ├── pages/         # Page components
-│   │   ├── DashboardPage.jsx
-│   │   └── CoverageMapPage.jsx
-│   ├── data/          # Static data files
-│   │   └── telus_towers.json
-│   └── App.jsx        # Main app component
-├── public/            # Static assets
-├── .env.example       # Environment variable template
-└── vite.config.js    # Vite configuration
+│   ├── pages/                               # Page components
+│   │   ├── DashboardPage.jsx                # Main dashboard layout
+│   │   └── CoverageMapPage.jsx              # Map-focused view
+│   ├── data/                                # Static data files
+│   │   └── telus_towers.json                # Tower location data
+│   ├── assets/                              # Images and assets
+│   ├── lib/                                 # Frontend utility libraries
+│   ├── App.jsx                              # Main application component
+│   └── main.jsx                             # Application entry point
+├── .env.example                             # Environment variable template (VITE_BACKEND_URL)
+├── package.json                             # Node.js dependencies
+└── vite.config.js                           # Vite build configuration
 ```
 
-## Dependencies
+---
 
-- React 18+
-- Vite
-- Leaflet & React-Leaflet (maps)
-- React Router DOM
+## 🧰 Quick Start
 
-See `package.json` for complete dependency list.
+```bash
+npm install
+# optional: copy .env.example to .env and set VITE_BACKEND_URL
+npm run dev
+```
+
+Dev server: **http://localhost:5173**. Backend URL: `VITE_BACKEND_URL` or default `http://localhost:5000`.
+
+**Build:** `npm run build` → output in `dist/`. Set `VITE_BACKEND_URL` before building for production. See **[REPORT.md](../REPORT.md)** for deployment and full details.
