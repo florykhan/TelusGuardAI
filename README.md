@@ -52,7 +52,7 @@ TelusGuardAI/
 │
 ├── backend/                                 # Flask backend & multi-agent system
 │   ├── agents/                              # AI agent implementations
-│   │   ├── event_intelligence.py             # Agent 1: query parsing, metadata & search queries
+│   │   ├── event_intelligence.py            # Agent 1: query parsing, metadata & search queries
 │   │   ├── web_intelligence.py              # Agent 2: web search + weather aggregation
 │   │   └── geospatial_reasoning.py          # Agent 3: geographic impact analysis
 │   ├── models/                              # Data models and schemas
@@ -61,8 +61,8 @@ TelusGuardAI/
 │   │   ├── ai_client.py                     # Unified client for AI model endpoints
 │   │   ├── web_search.py                    # Web search (mock; ready for real API)
 │   │   ├── weather_api.py                   # OpenWeatherMap API integration
-│   │   ├── kpi_service.py                    # Network KPI data service
-│   │   ├── tower_loader.py                   # Tower data loading utilities
+│   │   ├── kpi_service.py                   # Network KPI data service
+│   │   ├── tower_loader.py                  # Tower data loading utilities
 │   │   └── ...
 │   ├── utils/                               # Utility modules
 │   │   ├── cache.py                         # In-memory caching with TTL
@@ -83,13 +83,13 @@ TelusGuardAI/
 │   │   │   └── ...
 │   │   ├── pages/                           # Page components
 │   │   │   ├── DashboardPage.jsx            # Main dashboard layout
-│   │   │   └── CoverageMapPage.jsx           # Map-focused view
+│   │   │   └── CoverageMapPage.jsx          # Map-focused view
 │   │   ├── data/                            # Static data files
 │   │   │   └── telus_towers.json            # Tower location data
 │   │   ├── assets/                          # Images and assets
 │   │   ├── lib/                             # Frontend utility libraries
 │   │   ├── App.jsx                          # Main application component
-│   │   └── main.jsx                        # Application entry point
+│   │   └── main.jsx                         # Application entry point
 │   ├── .env.example                         # Environment variable template (VITE_BACKEND_URL)
 │   ├── package.json                         # Node.js dependencies
 │   └── vite.config.js                       # Vite build configuration
@@ -186,7 +186,7 @@ MIT License, feel free to use and modify with attribution See the [`LICENSE`](./
 
 **Ilian Khankhalaev**  
 _BSc Computing Science, Simon Fraser University_  
-📍 Vancouver, BC  | [GitHub](https://github.com/florykhan)  |  [LinkedIn](https://www.linkedin.com/in/ilian-khankhalaev/)
+📍 Vancouver, BC  |  [florykhan@gmail.com](mailto:florykhan@gmail.com)  |  [GitHub](https://github.com/florykhan)  |  [LinkedIn](https://www.linkedin.com/in/ilian-khankhalaev/)
 
 **Nikolay Deinego**  
 _BSc Computing Science, Simon Fraser University_  
