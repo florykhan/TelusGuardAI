@@ -144,16 +144,12 @@ TelusGuardAI/
 
 ## 📊 Datasets & APIs Used
 
-### Datasets
-
-- **Tower locations:** Static JSON (`frontend/src/data/telus_towers.json`) used for map display and context.
-- **Zenodo-style time series:** Backend can load Zenodo-style `r1.txt` (time, value) via `zenodo_loader.py` for time-series data where used.
-- **KPI data:** Provided by backend services (`kpi_service`, `tower_kpi_generator`, `kpi_stream`) — can be simulated or wired to real sources.
-
 ### APIs & External Services
 
 - **Telus AI Gateway** (paas.ai.telus.com) — LLM endpoints for Gemma-3-27b, DeepSeek-v3-2, GPT-OSS-120b (and optionally Qwen3Coder-30b, Qwen-Embedding).
 - **OpenWeatherMap API** — Current weather conditions for weather-related outage analysis (`weather_api.py`, key via `OPENWEATHER_API_KEY`).
+- **OpenCellID API** — Real tower locations and characteristics; used for map display and coverage context (e.g. `tower_loader.py`, frontend `telus_towers.json` sourced from it).
+- **Zenodo API** — Real-time KPI data: traffic load, latency, packet loss, and related network metrics (`zenodo_loader.py`, `kpi_stream.py`).
 - **Web search** — Mock in `web_search.py`; structured for drop-in replacement with Google Custom Search, Bing, or SerpAPI.
 
 ---
