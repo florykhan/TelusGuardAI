@@ -15,6 +15,14 @@ An **AI-powered network impact analysis system** that processes natural language
 
 ---
 
+## 🌐 Live Demo
+
+The app is deployed on **GitHub Pages** with the backend on **Render**. Try it here:
+
+**[https://florykhan.github.io/TelusGuardAI/](https://florykhan.github.io/TelusGuardAI/)**
+
+---
+
 ## ✨ Key Features
 
 - **Multi-agent AI orchestration** — Three specialized agents in sequence: Event Intelligence (query parsing) → Web Intelligence (search + weather) → Geospatial Reasoning (impact areas). Models: Gemma-3-27b, DeepSeek-v3-2, GPT-OSS-120b via **Telus AI Gateway**.
@@ -25,14 +33,6 @@ An **AI-powered network impact analysis system** that processes natural language
 - **Real-time KPI monitoring** — Network metrics (traffic, latency, packet loss) per tower from backend services.
 - **Caching** — 5-minute TTL to reduce API cost and improve performance.
 - **Error handling** — User-friendly messages for backend failures; analysis errors shown in the UI.
-
----
-
-## 🌐 Live Demo
-
-The app is deployed on **GitHub Pages** with the backend on **Render**. Try it here:
-
-**[https://florykhan.github.io/TelusGuardAI/](https://florykhan.github.io/TelusGuardAI/)**
 
 ---
 
