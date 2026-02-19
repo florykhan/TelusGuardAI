@@ -519,7 +519,7 @@ MIT License — feel free to use and modify with attribution.
 
 ---
 
-## 👤 Authors / Contributors
+## 👤 Authors
 
 **Ilian Khankhalaev**  
 _BSc Computing Science, Simon Fraser University_  
