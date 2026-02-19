@@ -159,11 +159,11 @@ For deployment, API endpoints, and limitations, see **[REPORT.md](REPORT.md)**.
 
 ## 📊 APIs & Data
 
-- **Telus AI Gateway** — LLM endpoints (Gemma-3-27b, DeepSeek-v3-2, GPT-OSS-120b) for the three agents.
+- **Telus AI Gateway** — LLM endpoints (Gemma-3-27b, DeepSeek-v3-2, GPT-OSS-120b) for the three AI agents.
 - **OpenWeatherMap API** — Current weather conditions for weather-related outage analysis.
-- **Tower locations** — Static JSON dataset (`telus_towers.json`) for map display.
+- **OpenCellID API** — Real tower locations and characteristics for map display and coverage context.
+- **Zenodo API** — Real-time KPI data: traffic load, latency, packet loss, and related network metrics.
 - **Web search** — Mock implementation; structured for Google Custom Search, Bing, or SerpAPI.
-- **KPI data** — Provided by backend services (simulated or real).
 
 ---
 
@@ -178,7 +178,7 @@ For deployment, API endpoints, and limitations, see **[REPORT.md](REPORT.md)**.
 
 ## 🧾 License
 
-MIT License — feel free to use and modify with attribution.
+MIT License, feel free to use and modify with attribution See the [`LICENSE`](./LICENSE) file for full details.
 
 ---
 
@@ -200,8 +200,3 @@ _BSc Computing Science, University of Toronto_
 _BSc Computing Science, Simon Fraser University_  
 📍 Vancouver, BC  | [GitHub](https://github.com/dykkyongdo)  |  [LinkedIn](https://www.linkedin.com/in/dyk-kyong-do/)
 
----
-
-## 🙏 Credits
-
-Telus AI Gateway, OpenWeatherMap, Leaflet, React & Vite. Developed for the **AI at the Edge Hackathon** (Telus & Technation).
