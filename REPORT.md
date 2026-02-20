@@ -106,7 +106,8 @@ TelusGuardAI/
 ├── Procfile                                 # Render backend deployment configuration
 ├── .gitignore
 ├── README.md                                # Main overview and quick start
-└── REPORT.md                                # This file — full project report
+├── REPORT.md                                # This file — full project report
+└── slides.pdf                               # Project slides (PDF)
 ```
 
 ---

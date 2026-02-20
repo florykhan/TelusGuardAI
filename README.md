@@ -97,7 +97,8 @@ TelusGuardAI/
 ├── Procfile                                 # Render backend deployment configuration
 ├── .gitignore
 ├── README.md                                # Main overview and quick start
-└── REPORT.md                                # Full project report
+├── REPORT.md                                # Full project report
+└── slides.pdf                               # Project slides (PDF)
 ```
 
 > 🗒️ **Note:**  
@@ -107,7 +108,7 @@ TelusGuardAI/
 
 ## 📄 Project Report
 
-All detailed descriptions, architecture, APIs, deployment, env vars, limitations, and future work are in the project report: **[REPORT.md](REPORT.md)**.
+All detailed descriptions, architecture, APIs, deployment, env vars, limitations, and future work are in the project report: **[REPORT.md](REPORT.md)**. Project slides (PDF): **[slides.pdf](slides.pdf)**.
 
 ---
 
