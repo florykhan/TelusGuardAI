@@ -1,6 +1,6 @@
 # 📡 TelusGuardAI — Network Impact Analyzer
 
-An **AI-powered network impact analysis system** that processes natural language queries about service disruptions, gathers intelligence from web and weather sources, and produces geospatial impact assessments with severity and confidence scores. Built with a **multi-agent orchestration** (Flask backend + React frontend).
+An **AI-powered network impact analysis system** developed during the 24-hour TECHNATION Hackathon, a Canada-wide online event sponsored by TELUS and supported by the Government of Canada. The system processes natural language queries about service disruptions, gathers intelligence from web and weather sources, and produces geospatial impact assessments with severity and confidence scores. Built using a **multi-agent orchestration** architecture with a Flask backend and React frontend.
 
 ---
 
