@@ -26,6 +26,9 @@ The app is deployed on **GitHub Pages** with the backend on **Render**. Try it h
 > ⚠️ **It is important:**  
 > **Real-time KPIs are working**, but **agent responses are not**. The reason is that the **API keys have expired** — they were provided by the organizers (Telus and Technation) **only for the Hackathon duration**. The keys are no longer valid, so the AI analysis pipeline does not return results. All API and backend calls are still registered in Render; the backend is running and the KPI endpoints work. To see full agent-based analysis, run the stack locally with your own API keys (see [REPORT.md](REPORT.md)).
 
+![TelusGuardAI dashboard](./frontend/public/TelusGuardAI.png)
+_Dashboard with query input, map view, and KPI panel_
+
 ---
 
 ## ✨ Key Features
